@@ -377,8 +377,11 @@ class DriverCollectorApp:
             self.current_plan(), tag=self.tag_var.get().strip()))
 
     def browse_etl(self):
+        from .config import LOG_DIR
+        LOG_DIR.mkdir(parents=True, exist_ok=True)
         path = filedialog.askopenfilename(
             title="Select ETL file",
+            initialdir=str(LOG_DIR),
             filetypes=[("ETL files", "*.etl"), ("All files", "*.*")])
         if not path:
             return
