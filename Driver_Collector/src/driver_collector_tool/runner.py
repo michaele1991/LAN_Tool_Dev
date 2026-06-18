@@ -4,6 +4,9 @@ from pathlib import Path
 
 from .model import ScriptPlan
 
+# Suppress console window on Windows; falls back to 0 on non-Windows.
+_NO_WINDOW: int = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+
 
 class CollectorError(RuntimeError):
     pass
@@ -62,12 +65,28 @@ def ensure_supported(plan: ScriptPlan) -> None:
 def run_script(script: Path, args: list[str]) -> str:
     if not script.exists():
         raise CollectorError(f"Script was not found: {script}")
-    command = subprocess.list2cmdline([str(script), *args])
+    # Pass cmd.exe + args as a LIST (no shell=True).
+    # Using shell=True with a string causes Python to wrap the command in outer
+    # quotes (cmd /c "..."), which — combined with list2cmdline quoting the
+    # bat path for the OneDrive space — triggers cmd.exe rule-2 quote stripping
+    # and corrupts the argument list (e.g. test_001"" was unexpected).
+    cmd = ["cmd.exe", "/c", str(script)] + [str(a) for a in args]
     env = os.environ.copy()
     try:
-        result = subprocess.run(command, cwd=str(script.parent), capture_output=True, text=True, shell=True, env=env, timeout=30)
+        result = subprocess.run(
+            cmd,
+            cwd=str(script.parent),
+            capture_output=True,
+            text=True,
+            timeout=30,
+            env=env,
+            creationflags=_NO_WINDOW,
+        )
     except subprocess.TimeoutExpired:
-        return f"Started or still running: {script.name}\nThe script did not finish within the short UI timeout. Check the script/admin prompt window."
+        return (
+            f"Started or still running: {script.name}\n"
+            "The script did not finish within the timeout — the ETL session may still be active."
+        )
     output = "\n".join(part for part in (result.stdout.strip(), result.stderr.strip()) if part)
     if result.returncode != 0:
         raise CollectorError(output or f"Script failed with exit code {result.returncode}: {script}")
