@@ -67,10 +67,20 @@ def build_plan(family: str, driver: str, flow: str) -> ScriptPlan:
             notes="Regular WPP logman flow. Start command passes the driver code to start_trace.bat.",
         )
 
-    return unsupported(
-        selection,
-        "No NDIS continuous/Sx collector script was found. Existing NDIS package contains only start_trace.bat and stop_trace.bat; add boot/continuous scripts to enable Sx for NDIS.",
+    # NDIS Sx flow — uses logman autosession (boot/continuous trace)
+    return ScriptPlan(
+        selection=selection,
+        supported=True,
+        start_script=NDIS_SCRIPT_DIR / "start_boot_trace.bat",
+        stop_script=NDIS_SCRIPT_DIR / "stop_boot_trace.bat",
         driver_code=driver_code,
+        parser_hint="Use tracerpt.exe to export the <driver>_boot.etl from the <driver>_boot_log* folder to CSV.",
+        notes=(
+            "Sx/reboot flow uses a logman autosession (persistent boot trace) so the WPP provider "
+            "stays registered across Sx transitions and reboots. "
+            "start_boot_trace.bat <driver> [flags] [level] [tag] registers the autologger; "
+            "stop_boot_trace.bat removes it and leaves the ETL ready for export."
+        ),
     )
 
 

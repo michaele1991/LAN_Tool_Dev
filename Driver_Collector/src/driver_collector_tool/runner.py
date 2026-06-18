@@ -31,13 +31,17 @@ def start_collection(plan: ScriptPlan, tag: str = "") -> str:
     return run_script(plan.start_script, args)
 
 
-def stop_collection(plan: ScriptPlan) -> str:
+def stop_collection(plan: ScriptPlan, tag: str = "") -> str:
     ensure_supported(plan)
     if plan.stop_script is None:
         raise CollectorError("No stop script is mapped.")
     args: list[str] = []
     if plan.selection.driver == "NDIS driver" and plan.driver_code:
+        # Pass driver code (+ optional tag) so stop_boot_trace.bat can reconstruct
+        # the autosession name NdisBootLog_<driver>[_tag] for both Idle/CS and Sx flows.
         args = [plan.driver_code]
+        if tag:
+            args.append(tag)
     return run_script(plan.stop_script, args)
 
 
