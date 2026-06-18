@@ -391,13 +391,24 @@ class DriverCollectorApp:
         self._set_status(f"ETL: {Path(path).name}")
 
     def export_csv(self):
-        etl = self.etl_var.get().strip()
+        from .exporter import _find_tracefmt
+        etl    = self.etl_var.get().strip()
         output = self.csv_var.get().strip()
+        syms   = self.symbols_var.get().strip() or None
         if not etl or not output:
             messagebox.showinfo("Export CSV", "Select an ETL file and CSV output path first.")
             return
-        self._run_action("Export CSV", lambda: "Wrote CSV: " + str(
-            export_etl_to_csv(etl, output, self.symbols_var.get().strip() or None)))
+        # Tell the user which decode path will be used
+        tracefmt = _find_tracefmt()
+        if syms and tracefmt:
+            method = f"tracefmt (WDK {tracefmt.parent.name}) + PDB → decoded WPP messages"
+        elif syms:
+            method = "tracerpt (no WDK found) + _NT_SYMBOL_PATH"
+        else:
+            method = "tracerpt (no PDB supplied — raw ETW events)"
+        self.write_output(f"Exporting…\nDecode method: {method}", "note")
+        self.root.update_idletasks()
+        self._run_action("Export CSV", lambda: f"Wrote CSV: {export_etl_to_csv(etl, output, syms)}\n\nDecode: {method}")
 
     def _run_action(self, title: str, action):
         self._set_status(f"{title}…", C["warning"], dot=C["warning"])
