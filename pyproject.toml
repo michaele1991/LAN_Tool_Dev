@@ -1,0 +1,12 @@
+[project]
+name = "smbus-parser-tool"
+version = "0.1.0"
+description = "Portable SMBus parser tool"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.scripts]
+smbus-parser-tool = "smbus_parser_tool.cli:main"
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
