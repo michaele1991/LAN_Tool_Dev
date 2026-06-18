@@ -1,0 +1,12 @@
+[project]
+name = "driver-collector-tool"
+version = "0.1.0"
+description = "Intel LAN driver trace collector and ETL-to-CSV exporter"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.scripts]
+driver-collector-tool = "driver_collector_tool.cli:main"
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
