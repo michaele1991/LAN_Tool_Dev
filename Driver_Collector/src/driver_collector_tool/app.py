@@ -148,20 +148,38 @@ class DriverCollectorApp:
         return cb
 
     def _entry(self, parent, variable, placeholder: str = "") -> ttk.Entry:
-        e = ttk.Entry(parent, textvariable=variable, font=("Consolas", 9))
-        if placeholder and not variable.get():
-            variable.set(placeholder)
-            e.configure(foreground=C["text_dim"])
-            def _focus_in(_evt):
-                if variable.get() == placeholder:
-                    variable.set("")
+        if placeholder:
+            # Do NOT bind textvariable — keep StringVar clean (always "" when
+            # placeholder is showing).  Storing the placeholder in the StringVar
+            # causes list2cmdline to quote it (it has spaces), so bat files receive
+            # `"e.g. test_001"` as %4, which breaks `if "%session_name%"` in cmd.
+            e = ttk.Entry(parent, font=("Consolas", 9))
+            _active = [False]   # True = user content shown, False = placeholder shown
+
+            def _show_placeholder():
+                e.delete(0, tk.END)
+                e.insert(0, placeholder)
+                e.configure(foreground=C["text_dim"])
+                _active[0] = False
+
+            def _on_focus_in(_evt):
+                if not _active[0]:
+                    e.delete(0, tk.END)
                     e.configure(foreground=C["text"])
-            def _focus_out(_evt):
-                if not variable.get():
-                    variable.set(placeholder)
-                    e.configure(foreground=C["text_dim"])
-            e.bind("<FocusIn>",  _focus_in)
-            e.bind("<FocusOut>", _focus_out)
+                    _active[0] = True
+
+            def _on_focus_out(_evt):
+                val = e.get().strip()
+                variable.set(val)
+                if not val:
+                    _show_placeholder()
+
+            e.bind("<FocusIn>",  _on_focus_in)
+            e.bind("<FocusOut>", _on_focus_out)
+            variable.set("")
+            _show_placeholder()
+        else:
+            e = ttk.Entry(parent, textvariable=variable, font=("Consolas", 9))
         return e
 
     def _btn(self, parent, text: str, command, bg: str = C["blue_btn"],
