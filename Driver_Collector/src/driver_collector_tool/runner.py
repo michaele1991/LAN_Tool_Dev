@@ -25,7 +25,10 @@ def start_collection(plan: ScriptPlan, tag: str = "") -> str:
             raise CollectorError("No NDIS driver code is mapped.")
         args = [plan.driver_code]
         if tag:
-            args += ["", "", tag]
+            # start_trace.bat signature: <driver> [flags] [level] [session_name]
+            # Use explicit defaults instead of "" to avoid cmd.exe quoting issues
+            # where set flags=%2 would assign literal "" (two quote chars) not empty.
+            args += ["0x0000003F", "4", tag]
     elif tag:
         args = [tag]
     return run_script(plan.start_script, args)
@@ -37,11 +40,17 @@ def stop_collection(plan: ScriptPlan, tag: str = "") -> str:
         raise CollectorError("No stop script is mapped.")
     args: list[str] = []
     if plan.selection.driver == "NDIS driver" and plan.driver_code:
-        # Pass driver code (+ optional tag) so stop_boot_trace.bat can reconstruct
-        # the autosession name NdisBootLog_<driver>[_tag] for both Idle/CS and Sx flows.
-        args = [plan.driver_code]
-        if tag:
-            args.append(tag)
+        if plan.selection.flow == "Sx flow":
+            # stop_boot_trace.bat accepts <driver> [tag] and reconstructs
+            # the autosession name NdisBootLog_<driver>[_tag].
+            args = [plan.driver_code]
+            if tag:
+                args.append(tag)
+        else:
+            # stop_trace.bat expects the full session name (e.g. E1D or E1D_test_001).
+            # start_trace.bat builds: session = driver + "_" + session_name
+            session = plan.driver_code + (f"_{tag}" if tag else "")
+            args = [session]
     return run_script(plan.stop_script, args)
 
 
