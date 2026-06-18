@@ -14,6 +14,9 @@ FLOWS = ("Idle flow", "CS flow", "Sx flow")
 NETADAPTER_SCRIPT_DIR = REGRESSION_ROOT / "07_TOOLS" / "Driver_NDIS_NetAdapter_collectors" / "NetAdapter" / "ClienLanTrace" / "ClienLanTrace"
 NDIS_SCRIPT_DIR = REGRESSION_ROOT / "drivers.ethernet.windows.ndis-ccv1-master"
 
+# All ETL output is written here regardless of which script runs.
+LOG_DIR = TOOL_ROOT / "Driver_log"
+
 FAMILY_DRIVER_CODE = {
     ("GBE", "NDIS driver"): "E1D",
     ("FXVL", "NDIS driver"): "E2F",

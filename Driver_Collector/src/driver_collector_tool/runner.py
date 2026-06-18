@@ -2,6 +2,7 @@ import os
 import subprocess
 from pathlib import Path
 
+from .config import LOG_DIR
 from .model import ScriptPlan
 
 # Suppress console window on Windows; falls back to 0 on non-Windows.
@@ -72,6 +73,9 @@ def run_script(script: Path, args: list[str]) -> str:
     # the first AND last " in the whole line, leaving OneDrive\ as bare command.
     cmd = ["cmd.exe", "/c", "call", str(script)] + [str(a) for a in args]
     env = os.environ.copy()
+    # Tell all collector scripts where to write their ETL output.
+    LOG_DIR.mkdir(parents=True, exist_ok=True)
+    env["DRIVER_COLLECTOR_LOG_DIR"] = str(LOG_DIR)
     try:
         result = subprocess.run(
             cmd,
