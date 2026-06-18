@@ -65,12 +65,12 @@ def ensure_supported(plan: ScriptPlan) -> None:
 def run_script(script: Path, args: list[str]) -> str:
     if not script.exists():
         raise CollectorError(f"Script was not found: {script}")
-    # Pass cmd.exe + args as a LIST (no shell=True).
-    # Using shell=True with a string causes Python to wrap the command in outer
-    # quotes (cmd /c "..."), which — combined with list2cmdline quoting the
-    # bat path for the OneDrive space — triggers cmd.exe rule-2 quote stripping
-    # and corrupts the argument list (e.g. test_001"" was unexpected).
-    cmd = ["cmd.exe", "/c", str(script)] + [str(a) for a in args]
+    # Build command as a list — no shell=True to avoid Python adding outer
+    # quotes that trigger cmd.exe rule-2 quote-stripping on paths with spaces.
+    # Insert "call" so the argument after /c starts with a word, not '"'.
+    # Without "call", cmd.exe sees /c "C:\path with spaces\..." and strips
+    # the first AND last " in the whole line, leaving OneDrive\ as bare command.
+    cmd = ["cmd.exe", "/c", "call", str(script)] + [str(a) for a in args]
     env = os.environ.copy()
     try:
         result = subprocess.run(
