@@ -917,11 +917,14 @@ class GbeImageEditor(tk.Tk):
             messagebox.showerror("Sync Error", f"Error syncing changes: {e}")
 
     def _clone_nvm_images(self) -> None:
-        """Clone nd_pae_sw-ccd_lan_nvm_images repo into GBE_Image/."""
+        """Download nd_pae_sw-ccd_lan_nvm_images into GBE_Image/ — works on any PC."""
         import threading
         import shutil
+        import zipfile
+        import urllib.request
 
-        REPO_URL = "https://github.com/michaele1991/nd_pae_sw-ccd_lan_nvm_images"
+        REPO_URL  = "https://github.com/michaele1991/nd_pae_sw-ccd_lan_nvm_images"
+        ZIP_URL   = f"{REPO_URL}/archive/refs/heads/master.zip"
         workspace_root = Path(__file__).parent.parent
         gbe_image_root = workspace_root / "GBE_Image"
 
@@ -931,71 +934,92 @@ class GbeImageEditor(tk.Tk):
             if not messagebox.askyesno(
                 "Clone NVM Images",
                 f"GBE_Image already contains {len(existing)} project folder(s).\n"
-                "Clone will add/update from the repository.\nContinue?"
+                "Download will add/update from the repository.\nContinue?"
             ):
                 return
 
-        # Build a progress dialog
+        # Progress dialog
         dlg = tk.Toplevel(self)
-        dlg.title("Cloning NVM Images")
-        dlg.geometry("480x140")
+        dlg.title("Downloading NVM Images")
+        dlg.geometry("480x160")
         dlg.resizable(False, False)
         dlg.grab_set()
-        tk.Label(dlg, text="Cloning NVM image repository (master)…", font=('Segoe UI', 10)).pack(pady=(18, 6))
+        tk.Label(dlg, text="Downloading NVM image repository…", font=('Segoe UI', 10)).pack(pady=(18, 6))
         prog = ttk.Progressbar(dlg, mode='indeterminate', length=400)
         prog.pack(pady=4)
         status_var = tk.StringVar(value="Connecting…")
         tk.Label(dlg, textvariable=status_var, font=('Segoe UI', 9), fg='#555').pack(pady=4)
         prog.start(12)
 
-        def do_clone():
+        def do_download():
             try:
-                tmp_dir = workspace_root / "_nvm_clone_tmp"
-                if tmp_dir.exists():
-                    shutil.rmtree(tmp_dir)
+                tmp_zip  = workspace_root / "_nvm_download.zip"
+                tmp_dir  = workspace_root / "_nvm_extract_tmp"
 
-                self.after(0, lambda: status_var.set("Running git clone --depth 1 …"))
-                result = subprocess.run(
+                # ── Try git clone first (faster, incremental) ──────────────
+                git_ok = False
+                self.after(0, lambda: status_var.set("Trying git clone…"))
+                git_result = subprocess.run(
                     ["git", "clone", "--depth", "1", "-b", "master", REPO_URL, str(tmp_dir)],
                     capture_output=True, text=True
                 )
+                if git_result.returncode == 0:
+                    git_ok = True
+                else:
+                    # ── Fallback: download ZIP via urllib (no git needed) ──
+                    self.after(0, lambda: status_var.set("Downloading ZIP archive…"))
+                    if tmp_dir.exists():
+                        shutil.rmtree(tmp_dir)
+                    urllib.request.urlretrieve(ZIP_URL, str(tmp_zip))
 
-                if result.returncode != 0:
-                    err = result.stderr.strip() or result.stdout.strip()
-                    self.after(0, lambda: _finish(False, err))
-                    return
+                    self.after(0, lambda: status_var.set("Extracting…"))
+                    tmp_dir.mkdir(parents=True, exist_ok=True)
+                    with zipfile.ZipFile(str(tmp_zip), 'r') as zf:
+                        zf.extractall(str(tmp_dir))
+                    tmp_zip.unlink(missing_ok=True)
 
-                # Move project folders into GBE_Image/
+                    # ZIP extracts into a single subfolder e.g. "nd_pae_sw-...-master/"
+                    subdirs = [d for d in tmp_dir.iterdir() if d.is_dir()]
+                    if len(subdirs) == 1:
+                        # Flatten: move contents of that subfolder up
+                        inner = subdirs[0]
+                        for item in list(inner.iterdir()):
+                            item.rename(tmp_dir / item.name)
+                        inner.rmdir()
+
+                # ── Move project folders into GBE_Image/ ───────────────────
+                self.after(0, lambda: status_var.set("Installing project folders…"))
                 gbe_image_root.mkdir(parents=True, exist_ok=True)
                 moved = 0
                 for item in tmp_dir.iterdir():
-                    if item.name.startswith('.') or item.name == '.git':
+                    if item.name.startswith('.') or item.name in ('.git', '__MACOSX'):
                         continue
                     dest = gbe_image_root / item.name
                     if dest.exists():
-                        if dest.is_dir():
-                            shutil.rmtree(dest)
-                        else:
-                            dest.unlink()
+                        shutil.rmtree(dest) if dest.is_dir() else dest.unlink()
                     shutil.move(str(item), str(dest))
                     moved += 1
 
                 shutil.rmtree(tmp_dir, ignore_errors=True)
-                self.after(0, lambda: _finish(True, f"Copied {moved} item(s) into GBE_Image/"))
+                method = "git clone" if git_ok else "ZIP download"
+                self.after(0, lambda: _finish(True, f"{moved} item(s) installed via {method}"))
 
             except Exception as exc:
+                for p in [workspace_root / "_nvm_download.zip", workspace_root / "_nvm_extract_tmp"]:
+                    if p.exists():
+                        shutil.rmtree(p, ignore_errors=True) if p.is_dir() else p.unlink(missing_ok=True)
                 self.after(0, lambda: _finish(False, str(exc)))
 
         def _finish(ok: bool, msg: str):
             prog.stop()
             dlg.destroy()
             if ok:
-                messagebox.showinfo("Clone Complete", f"NVM images cloned successfully.\n{msg}")
+                messagebox.showinfo("Download Complete", f"NVM images installed successfully.\n{msg}")
                 self._load_gbe_folders()
             else:
-                messagebox.showerror("Clone Failed", f"git clone failed:\n{msg}")
+                messagebox.showerror("Download Failed", f"Failed to download NVM images:\n{msg}")
 
-        threading.Thread(target=do_clone, daemon=True).start()
+        threading.Thread(target=do_download, daemon=True).start()
 
     def _open_new_project_dialog(self) -> None:
         """Open a dialog to create a new GBE project folder from an existing template."""
