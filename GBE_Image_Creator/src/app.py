@@ -21,6 +21,7 @@ class RegisterDef:
     name: str
     word_index: int
     description: str = ""
+    rtl_name: str = ""
 
 
 class GbeImageEditor(tk.Tk):
@@ -128,10 +129,12 @@ class GbeImageEditor(tk.Tk):
         self.folder_combo.pack(side=tk.LEFT, padx=(0, 12))
         self.folder_combo.bind("<<ComboboxSelected>>", lambda _e: self.open_folder())
         ttk.Button(top, text="Refresh", command=self._load_gbe_folders).pack(side=tk.LEFT, padx=4)
+        ttk.Button(top, text="New Project", command=self._open_new_project_dialog).pack(side=tk.LEFT, padx=4)
         ttk.Button(top, text="Load Excel  [Ctrl+L]", command=self.load_from_excel, style='Accent.TButton').pack(side=tk.LEFT, padx=4)
         ttk.Button(top, text="Build NVM  [Ctrl+B]", command=self.run_build_flow, style='Build.TButton').pack(side=tk.LEFT, padx=4)
         ttk.Button(top, text="Open Output Folder", command=self._open_output_folder).pack(side=tk.LEFT, padx=4)
         ttk.Button(top, text="Version Diff", command=self.show_version_diff).pack(side=tk.LEFT, padx=4)
+        ttk.Button(top, text="Clone NVM Images", command=self._clone_nvm_images).pack(side=tk.LEFT, padx=4)
 
         # Parameters section - modern card design
         param_outer = tk.Frame(self, bg=self.colors['bg'])
@@ -217,6 +220,9 @@ class GbeImageEditor(tk.Tk):
         
         self.notes_text = tk.Text(notes_frame, height=3, wrap=tk.WORD, font=("Segoe UI", 9),
                                  relief=tk.SOLID, bd=1)
+        notes_scroll = ttk.Scrollbar(notes_frame, orient=tk.VERTICAL, command=self.notes_text.yview)
+        notes_scroll.pack(side=tk.RIGHT, fill=tk.Y)
+        self.notes_text.configure(yscrollcommand=notes_scroll.set)
         self.notes_text.pack(fill=tk.X)
         self.notes_text.insert("1.0", "Enter project notes and documentation here...")
         self.notes_text.bind('<FocusIn>', lambda e: self.notes_text.delete("1.0", tk.END) if self.notes_text.get("1.0", "end-1c") == "Enter project notes and documentation here..." else None)
@@ -238,11 +244,15 @@ class GbeImageEditor(tk.Tk):
         style.configure('TNotebook', background=self.colors['bg'])
         style.configure('TNotebook.Tab', font=('Segoe UI', 10), padding=[20, 8])
         
-        self.notebook = ttk.Notebook(main)
-        self.notebook.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 8))
+        main_paned = ttk.PanedWindow(main, orient=tk.HORIZONTAL)
+        main_paned.pack(fill=tk.BOTH, expand=True)
+        nb_frame = ttk.Frame(main_paned)
+        main_paned.add(nb_frame, weight=3)
+        self.notebook = ttk.Notebook(nb_frame)
+        self.notebook.pack(fill=tk.BOTH, expand=True, padx=(0, 4))
 
         # Initialize variables needed for tree creation
-        self.show_less_var = tk.BooleanVar(value=True)  # Start with simple view
+        self.show_less_var = tk.BooleanVar(value=False)  # Start with full view
         self.show_less_var.trace('w', lambda *args: self._on_show_less_changed())
 
         # Tab 1: Excel Data View
@@ -395,9 +405,55 @@ class GbeImageEditor(tk.Tk):
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         self.tree.configure(yscrollcommand=scrollbar.set)
 
-        # Right panel with controls
-        right = ttk.Frame(main, padding=(12, 0, 0, 0))
-        right.pack(side=tk.RIGHT, fill=tk.Y)
+        # Right panel — part of main PanedWindow for native drag-resize
+        right_outer = ttk.Frame(main_paned)
+        main_paned.add(right_outer, weight=0)
+
+        # Scroll arrow buttons at the very top
+        right_arrows = ttk.Frame(right_outer)
+        right_arrows.pack(side=tk.TOP, fill=tk.X)
+
+        right_vscroll = ttk.Scrollbar(right_outer, orient=tk.VERTICAL)
+        right_vscroll.pack(side=tk.RIGHT, fill=tk.Y)
+
+        right_canvas = tk.Canvas(right_outer, width=240, highlightthickness=0, bd=0,
+                                 bg=self.colors['bg'])
+        right_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        right_canvas.configure(yscrollcommand=right_vscroll.set)
+        right_vscroll.configure(command=right_canvas.yview)
+
+        right = ttk.Frame(right_canvas, padding=(12, 0, 4, 0))
+        _rwin = right_canvas.create_window((0, 0), window=right, anchor='nw')
+
+        def _on_right_inner_cfg(event):
+            right_canvas.configure(scrollregion=right_canvas.bbox("all"))
+
+        def _on_right_canvas_cfg(event):
+            right_canvas.itemconfig(_rwin, width=event.width)
+
+        right.bind('<Configure>', _on_right_inner_cfg)
+        right_canvas.bind('<Configure>', _on_right_canvas_cfg)
+
+        def _mw_right(event):
+            right_canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+
+        def _bind_mw(e=None):
+            right_canvas.bind_all('<MouseWheel>', _mw_right)
+
+        def _unbind_mw(e=None):
+            right_canvas.unbind_all('<MouseWheel>')
+
+        right_canvas.bind('<Enter>', _bind_mw)
+        right_canvas.bind('<Leave>', _unbind_mw)
+        right.bind('<Enter>', _bind_mw)
+        right.bind('<Leave>', _unbind_mw)
+
+        ttk.Button(right_arrows, text="▲", width=4,
+                   command=lambda: right_canvas.yview_scroll(-3, "units")).pack(side=tk.LEFT, padx=(2, 0), pady=1)
+        ttk.Button(right_arrows, text="▼", width=4,
+                   command=lambda: right_canvas.yview_scroll(3, "units")).pack(side=tk.LEFT, padx=2, pady=1)
+        ttk.Button(right_arrows, text="⏫", width=4,
+                   command=lambda: right_canvas.yview_moveto(0)).pack(side=tk.LEFT, padx=(0, 2), pady=1)
 
         # Define remaining StringVars
         self.index_var = tk.StringVar()
@@ -859,6 +915,256 @@ class GbeImageEditor(tk.Tk):
             
         except Exception as e:
             messagebox.showerror("Sync Error", f"Error syncing changes: {e}")
+
+    def _clone_nvm_images(self) -> None:
+        """Clone nd_pae_sw-ccd_lan_nvm_images repo into GBE_Image/."""
+        import threading
+        import shutil
+
+        REPO_URL = "https://github.com/michaele1991/nd_pae_sw-ccd_lan_nvm_images"
+        workspace_root = Path(__file__).parent.parent
+        gbe_image_root = workspace_root / "GBE_Image"
+
+        # Confirm if GBE_Image already has content
+        existing = [f for f in gbe_image_root.iterdir() if f.is_dir()] if gbe_image_root.exists() else []
+        if existing:
+            if not messagebox.askyesno(
+                "Clone NVM Images",
+                f"GBE_Image already contains {len(existing)} project folder(s).\n"
+                "Clone will add/update from the repository.\nContinue?"
+            ):
+                return
+
+        # Build a progress dialog
+        dlg = tk.Toplevel(self)
+        dlg.title("Cloning NVM Images")
+        dlg.geometry("480x140")
+        dlg.resizable(False, False)
+        dlg.grab_set()
+        tk.Label(dlg, text="Cloning NVM image repository (master)…", font=('Segoe UI', 10)).pack(pady=(18, 6))
+        prog = ttk.Progressbar(dlg, mode='indeterminate', length=400)
+        prog.pack(pady=4)
+        status_var = tk.StringVar(value="Connecting…")
+        tk.Label(dlg, textvariable=status_var, font=('Segoe UI', 9), fg='#555').pack(pady=4)
+        prog.start(12)
+
+        def do_clone():
+            try:
+                tmp_dir = workspace_root / "_nvm_clone_tmp"
+                if tmp_dir.exists():
+                    shutil.rmtree(tmp_dir)
+
+                self.after(0, lambda: status_var.set("Running git clone --depth 1 …"))
+                result = subprocess.run(
+                    ["git", "clone", "--depth", "1", "-b", "master", REPO_URL, str(tmp_dir)],
+                    capture_output=True, text=True
+                )
+
+                if result.returncode != 0:
+                    err = result.stderr.strip() or result.stdout.strip()
+                    self.after(0, lambda: _finish(False, err))
+                    return
+
+                # Move project folders into GBE_Image/
+                gbe_image_root.mkdir(parents=True, exist_ok=True)
+                moved = 0
+                for item in tmp_dir.iterdir():
+                    if item.name.startswith('.') or item.name == '.git':
+                        continue
+                    dest = gbe_image_root / item.name
+                    if dest.exists():
+                        if dest.is_dir():
+                            shutil.rmtree(dest)
+                        else:
+                            dest.unlink()
+                    shutil.move(str(item), str(dest))
+                    moved += 1
+
+                shutil.rmtree(tmp_dir, ignore_errors=True)
+                self.after(0, lambda: _finish(True, f"Copied {moved} item(s) into GBE_Image/"))
+
+            except Exception as exc:
+                self.after(0, lambda: _finish(False, str(exc)))
+
+        def _finish(ok: bool, msg: str):
+            prog.stop()
+            dlg.destroy()
+            if ok:
+                messagebox.showinfo("Clone Complete", f"NVM images cloned successfully.\n{msg}")
+                self._load_gbe_folders()
+            else:
+                messagebox.showerror("Clone Failed", f"git clone failed:\n{msg}")
+
+        threading.Thread(target=do_clone, daemon=True).start()
+
+    def _open_new_project_dialog(self) -> None:
+        """Open a dialog to create a new GBE project folder from an existing template."""
+        workspace_root = Path(__file__).parent.parent
+        gbe_image_root = workspace_root / "GBE_Image"
+        existing = sorted([f.name for f in gbe_image_root.iterdir() if f.is_dir()]) if gbe_image_root.exists() else []
+
+        dlg = tk.Toplevel(self)
+        dlg.title("New Project")
+        dlg.geometry("520x580")
+        dlg.resizable(False, False)
+        dlg.grab_set()
+
+        # Title bar
+        hdr = tk.Frame(dlg, bg='#0071c5', height=40)
+        hdr.pack(fill=tk.X)
+        hdr.pack_propagate(False)
+        tk.Label(hdr, text="Create New GBE Project", bg='#0071c5', fg='white',
+                 font=('Segoe UI', 12, 'bold')).pack(side=tk.LEFT, padx=16, pady=8)
+
+        body = ttk.Frame(dlg, padding=18)
+        body.pack(fill=tk.BOTH, expand=True)
+
+        def _row(parent, label, var, row, placeholder=""):
+            ttk.Label(parent, text=label, font=('Segoe UI', 9)).grid(row=row, column=0, sticky='w', pady=4, padx=(0, 12))
+            e = ttk.Entry(parent, textvariable=var, width=28)
+            e.grid(row=row, column=1, sticky='ew', pady=4)
+            return e
+
+        body.columnconfigure(1, weight=1)
+
+        folder_var   = tk.StringVar()
+        silicon_var  = tk.StringVar(value=self.silicon_var.get())
+        step_var     = tk.StringVar(value=self.step_var.get())
+        major_var    = tk.StringVar(value=self.major_var.get())
+        minor_var    = tk.StringVar(value=self.minor_var.get())
+        device_var   = tk.StringVar(value=self.device_id_var.get())
+        sku_var      = tk.StringVar(value=self.sku_device_id_var.get())
+        output_var   = tk.StringVar()
+        lan_var      = tk.StringVar(value=self.lan_sw_var.get())
+        lmv_var      = tk.StringVar(value=self.lm_v_var.get())
+        template_var = tk.StringVar(value=existing[0] if existing else "")
+
+        # Auto-fill NVM output from folder name
+        def _sync_output(*_):
+            if not output_var.get() or output_var.get() == folder_var.get():
+                output_var.set(folder_var.get())
+        folder_var.trace_add("write", _sync_output)
+
+        r = 0
+        _row(body, "Project Folder Name:", folder_var, r); r += 1
+        _row(body, "NVM Output Name:",     output_var,  r); r += 1
+        _row(body, "Silicon:",             silicon_var, r); r += 1
+        _row(body, "Step:",                step_var,    r); r += 1
+        _row(body, "Major Version:",       major_var,   r); r += 1
+        _row(body, "Minor Version:",       minor_var,   r); r += 1
+        _row(body, "Device ID:",           device_var,  r); r += 1
+        _row(body, "SKU Device ID:",       sku_var,     r); r += 1
+
+        # LAN SW radio
+        ttk.Label(body, text="LAN Mode:", font=('Segoe UI', 9)).grid(row=r, column=0, sticky='w', pady=4)
+        lan_frame = ttk.Frame(body)
+        lan_frame.grid(row=r, column=1, sticky='w'); r += 1
+        ttk.Radiobutton(lan_frame, text="LAN SW",     value="lan",     variable=lan_var).pack(side=tk.LEFT)
+        ttk.Radiobutton(lan_frame, text="Non-LAN SW", value="non_lan", variable=lan_var).pack(side=tk.LEFT, padx=8)
+
+        # LM/V radio
+        ttk.Label(body, text="LM/V Mode:", font=('Segoe UI', 9)).grid(row=r, column=0, sticky='w', pady=4)
+        lmv_frame = ttk.Frame(body)
+        lmv_frame.grid(row=r, column=1, sticky='w'); r += 1
+        ttk.Radiobutton(lmv_frame, text="V",    value="V",    variable=lmv_var).pack(side=tk.LEFT)
+        ttk.Radiobutton(lmv_frame, text="LM",   value="LM",   variable=lmv_var).pack(side=tk.LEFT, padx=8)
+        ttk.Radiobutton(lmv_frame, text="Both", value="Both", variable=lmv_var).pack(side=tk.LEFT)
+
+        # Template selector
+        ttk.Label(body, text="Copy XLSM from:", font=('Segoe UI', 9)).grid(row=r, column=0, sticky='w', pady=4)
+        tmpl_cb = ttk.Combobox(body, textvariable=template_var, values=existing, state="readonly", width=28)
+        tmpl_cb.grid(row=r, column=1, sticky='ew', pady=4); r += 1
+
+        err_var = tk.StringVar()
+        err_lbl = ttk.Label(body, textvariable=err_var, foreground='red', font=('Segoe UI', 8), wraplength=420)
+        err_lbl.grid(row=r, column=0, columnspan=2, sticky='w', pady=(4, 0)); r += 1
+
+        # Buttons
+        btn_frame = ttk.Frame(dlg, padding=(18, 0, 18, 14))
+        btn_frame.pack(fill=tk.X, side=tk.BOTTOM)
+        ttk.Button(btn_frame, text="Cancel", command=dlg.destroy).pack(side=tk.RIGHT, padx=(6, 0))
+        ttk.Button(btn_frame, text="Create Project", style='Accent.TButton',
+                   command=lambda: _do_create()).pack(side=tk.RIGHT)
+
+        def _do_create():
+            folder_name = folder_var.get().strip()
+            if not folder_name:
+                err_var.set("Project folder name is required."); return
+
+            dest = gbe_image_root / folder_name
+            if dest.exists():
+                err_var.set(f"Folder already exists: {dest}"); return
+
+            tmpl_name = template_var.get()
+            if not tmpl_name:
+                err_var.set("Select a template project to copy XLSM from."); return
+
+            tmpl_dir = gbe_image_root / tmpl_name
+            xlsm_files = list(tmpl_dir.glob("*.xlsm"))
+            if not xlsm_files:
+                err_var.set(f"No .xlsm found in template: {tmpl_name}"); return
+
+            import shutil
+            try:
+                dest.mkdir(parents=True)
+
+                # Copy Build.bat and calc_csum.py verbatim
+                for fname in ("Build.bat", "calc_csum.py"):
+                    src_f = tmpl_dir / fname
+                    if src_f.exists():
+                        shutil.copy2(str(src_f), str(dest / fname))
+
+                # Copy XLSM, rename to <folder_name_lower>_nvm_map.xlsm
+                new_xlsm_name = folder_name.lower() + "_nvm_map.xlsm"
+                shutil.copy2(str(xlsm_files[0]), str(dest / new_xlsm_name))
+
+                # Generate run_excel_macro.vbs with updated filenames
+                vbs_content = (
+                    "Option Explicit\n\n"
+                    "    LaunchMacro\n\n"
+                    "    Sub LaunchMacro() \n"
+                    "      Dim xl\n"
+                    "      Dim xlBook      \n"
+                    "      Dim sCurPath\n\n"
+                    "        sCurPath = CreateObject(\"Scripting.FileSystemObject\").GetAbsolutePathName(\".\")\n"
+                    f"        Set xl = CreateObject(\"Excel.application\")\n"
+                    f"        Set xlBook = xl.Workbooks.Open(sCurPath & \"\\{new_xlsm_name}\", 0, True)   \n"
+                    "        xl.Application.Visible = False\n"
+                    f"        xl.Application.run \"{new_xlsm_name}!Module1.genNvmCMDline\"\n"
+                    "        xl.DisplayAlerts = False        \n"
+                    "        xlBook.Save = True\n"
+                    "        xl.activewindow.close\n"
+                    "        xl.Quit\n"
+                    "        Set xlBook = Nothing\n"
+                    "        Set xl = Nothing\n"
+                    "        End Sub \n"
+                )
+                (dest / "run_excel_macro.vbs").write_text(vbs_content, encoding="utf-8")
+
+                # Write parameters.json with the entered values
+                import json as _json
+                params = {
+                    "projectName":   folder_name,
+                    "nvmOutput":     output_var.get().strip() or folder_name,
+                    "silicon":       silicon_var.get().strip(),
+                    "step":          step_var.get().strip(),
+                    "version":       {"major": major_var.get().strip(), "minor": minor_var.get().strip()},
+                    "deviceId":      device_var.get().strip(),
+                    "skuDeviceId":   sku_var.get().strip(),
+                    "lanMode":       lan_var.get(),
+                    "lmvMode":       lmv_var.get(),
+                }
+                (dest / "parameters.json").write_text(_json.dumps(params, indent=2), encoding="utf-8")
+
+                dlg.destroy()
+                self._load_gbe_folders()
+                # Select the new project
+                self.folder_var.set(folder_name)
+                self.open_folder()
+                messagebox.showinfo("New Project", f"Project '{folder_name}' created successfully.")
+
+            except Exception as ex:
+                err_var.set(f"Error: {ex}")
 
     def _load_gbe_folders(self) -> None:
         """Scan GBE_Image folder for project subfolders."""
@@ -1954,7 +2260,15 @@ class GbeImageEditor(tk.Tk):
             self.refresh_registers()
             return
         data = json.loads(reg_path.read_text(encoding="utf-8"))
-        self.registers = [RegisterDef(**item) for item in data]
+        loaded = []
+        for item in data:
+            item.setdefault('rtl_name', '')
+            try:
+                loaded.append(RegisterDef(**item))
+            except TypeError:
+                loaded.append(RegisterDef(name=item.get('name',''), word_index=item.get('word_index',0),
+                                          description=item.get('description',''), rtl_name=item.get('rtl_name','')))
+        self.registers = loaded
         self.refresh_registers()
 
     def save_registers(self) -> None:
@@ -1973,9 +2287,12 @@ class GbeImageEditor(tk.Tk):
         self.reg_tree.delete(*self.reg_tree.get_children())
         flt = self.reg_search_var.get().lower() if hasattr(self, "reg_search_var") else ""
         for reg in self.registers:
-            if flt and flt not in reg.name.lower():
-                continue
-            self.reg_tree.insert("", tk.END, values=(reg.name, reg.word_index))
+            rtl = getattr(reg, 'rtl_name', '') or ''
+            display_name = rtl if rtl else reg.name
+            if flt:
+                if flt not in reg.name.lower() and flt not in rtl.lower():
+                    continue
+            self.reg_tree.insert("", tk.END, values=(display_name, reg.word_index))
 
     def _filter_registers(self) -> None:
         self.refresh_registers()
@@ -2005,7 +2322,8 @@ class GbeImageEditor(tk.Tk):
             except (ValueError, TypeError):
                 word_idx = 0
             if name not in existing_names:
-                self.registers.append(RegisterDef(name=name, word_index=word_idx))
+                rtl = str(row.get('rtl_name') or '').strip()
+                self.registers.append(RegisterDef(name=name, word_index=word_idx, rtl_name=rtl))
                 existing_names.add(name)
                 added += 1
         self.refresh_registers()
@@ -2019,12 +2337,15 @@ class GbeImageEditor(tk.Tk):
         values = self.reg_tree.item(sel[0], "values")
         if not values:
             return
-        reg_name = str(values[0])
-        self.register_name_var.set(reg_name)
+        display_name = str(values[0])
+        self.register_name_var.set(display_name)
         self.index_var.set(str(values[1]))
-        
-        # Find and display register description
-        reg = next((r for r in self.registers if r.name == reg_name), None)
+
+        # Find register by rtl_name or c-spec name
+        def _match(r):
+            rtl = getattr(r, 'rtl_name', '') or ''
+            return rtl == display_name or r.name == display_name
+        reg = next((r for r in self.registers if _match(r)), None)
         if reg and reg.description:
             self.register_desc_var.set(reg.description)
         else:
