@@ -1,77 +1,127 @@
-﻿# LAN Tool Dev — Copilot Instructions
+﻿# GBE Image Builder — AI Workflow Instructions
 
-## GBE Image Creation Workflow
-
-When the user says anything like "create GBE image", "build NVM image", or "make image for [project]",
-follow this exact step-by-step workflow — ask ONE question at a time, wait for the answer, then ask the next.
-
-### Questions to ask (in order):
-
-**Q1 - Project:**
-List all folders under GBE_Image_Creator/GBE_Image/ as a numbered list and ask the user to pick one.
-
-**Q2 - Offset:**
-Ask: "What is the NVM word offset? (hex, e.g. 0x59)"
-Then look up and display all bits at that offset from the XLSM in the project folder.
-Show the bits table: Bit | RTL name | Description | Current V | Current LM
-
-**Q3 - Bit:**
-Ask: "Which bit do you want to change?"
-
-**Q4 - Mode:**
-Ask: "V, LM, or Both?"
-
-**Q5 - New value:**
-Ask: "New value for this bit? (0 or 1)"
-If the new value equals the current value, warn the user.
-
-**Done check:**
-Ask: "Any more changes? (y/n)"
-- If y, go back to Q2
-- If n, show the full change summary and ask: "Build now? (y/n)"
-
-### Build:
-When confirmed, run gbe_build.py or patch binaries directly:
-- Read the XLSM full nvm map sheet to find the current word value
-- Set the specified bit in the binary at offset*2
-- Recalculate checksum at word 0x3F: sum(word[0x00..0x3E]) + csum + 0xBABA = 0 mod 0x10000
-- Save change_request_<timestamp>.json and change_report_<timestamp>.txt in the project folder
+## Trigger
+When the user says anything like "create GBE image", "build image", "make NVM image",
+or "create image for [project]" — execute the workflow below automatically.
+Do NOT ask the user to explain anything. Just start with Q1.
 
 ---
 
-## Folder Structure
+## Step-by-step workflow
 
+### Q1 — Project
+Run this and show as a numbered list:
+```powershell
+Get-ChildItem "GBE_Image_Creator\GBE_Image" -Directory | Select-Object -ExpandProperty Name | Sort-Object
 ```
-LAN_Tool_Dev/
-├── GBE_Builder/
-│   ├── gbe_build.py        <- standalone CLI build script (no API needed)
-│   └── RUN.bat             <- double-click to run
-├── GBE_Image_Creator/
-│   ├── GBE_Image/          <- all NVM projects (XLSMs + binaries)
-│   │   ├── Nahum13_ptl_pcd_p_h/
-│   │   ├── Nahum11_mtl_m_p/
-│   │   └── ... (29 projects total)
-│   └── src/app.py          <- GUI tool
-└── NVM_AI_Assistant/
-    └── src/app.py          <- Claude-powered NVM advisor GUI
+Ask: "Which project? (enter number or name prefix)"
+
+### Q2 — Offset
+Ask: "NVM word offset? (hex, e.g. 0x59)"
+
+Then immediately look up and display all bits at that offset:
+```python
+from openpyxl import load_workbook
+from pathlib import Path
+
+project = "<chosen project>"
+xlsm = next(Path(f"GBE_Image_Creator/GBE_Image/{project}").glob("*.xlsm"))
+wb = load_workbook(str(xlsm), read_only=True, data_only=True, keep_vba=False)
+ws = wb["full nvm map"]
+offset_target = "<user offset>"  # normalize: strip 0x, add h -> e.g. "59h"
+for row in ws.iter_rows(min_row=7, values_only=True):
+    if row[0] and row[0].lower().strip() == offset_target:
+        print(f"Bit {row[1]:>4}  {row[2]:<45}  V={row[6]}  LM={row[7]}")
+wb.close()
+```
+Show as table: Bit | RTL name | Description | Current V | Current LM
+
+### Q3 — Bit
+Ask: "Which bit?"
+
+### Q4 — Mode
+Ask: "V, LM, or Both?"
+
+### Q5 — New value
+Ask: "New value? (0 or 1)"
+If new value == current value → warn: "Already set to that value."
+
+### Done check
+Ask: "Any more changes? (y/n)"
+- y → go back to Q2 (same project)
+- n → show full change summary table, then ask "Build now? (y/n)"
+
+---
+
+## Build — patch the binaries
+
+When user confirms build, execute this Python logic for each change:
+
+```python
+import struct, shutil
+from pathlib import Path
+
+project = "<chosen project>"
+proj_dir = Path(f"GBE_Image_Creator/GBE_Image/{project}")
+
+# Find V (Consumer) and LM (Corporate) output dirs
+out_dirs = [d for d in proj_dir.iterdir() if d.is_dir()]
+cons_dir = next((d for d in out_dirs if any(x in d.name.lower() for x in ("cons","_v_","lan"))), out_dirs[0])
+corp_dir = next((d for d in out_dirs if any(x in d.name.lower() for x in ("corp","lm","non"))), out_dirs[-1])
+
+def patch(bin_path, offset_int, bit_int, new_bit):
+    data = bytearray(bin_path.read_bytes())
+    pos = offset_int * 2
+    old = struct.unpack_from("<H", data, pos)[0]
+    new = (old | (1 << bit_int)) if new_bit else (old & ~(1 << bit_int))
+    struct.pack_into("<H", data, pos, new)
+    # recalculate checksum at 0x3F
+    cpos = 0x3F * 2
+    struct.pack_into("<H", data, cpos, 0)
+    s = sum(struct.unpack_from("<H", data, i)[0] for i in range(0, cpos, 2))
+    csum = (0xBABA - s) & 0xFFFF
+    struct.pack_into("<H", data, cpos, csum)
+    bin_path.write_bytes(data)
+    return old, new, csum
+
+# For each change:
+#   if mode in (V, Both)  -> patch cons_dir/*.bin
+#   if mode in (LM, Both) -> patch corp_dir/*.bin
+# Also patch the matching *.txt file (same word positions, space-separated hex)
 ```
 
-## XLSM Column Layout (sheet: "full nvm map", data from row 7)
-- Col A: LAN Word Offset
-- Col B: Bits
-- Col C: RTL name
-- Col D: C-Spec name
-- Col F: Description
-- Col G: V value (LAN SW / Consumer)
-- Col H: LM value (Non-LAN SW / Corporate)
+Always backup `.bin` → `.bin.bak` before patching.
+
+---
 
 ## Checksum rule
-Word 0x3F must satisfy: sum(word[0x00]..word[0x3E]) + word[0x3F] + 0xBABA = 0 (mod 0x10000)
-Always recalculate and update word 0x3F after any binary patch.
+`sum(word[0x00] .. word[0x3E]) + word[0x3F] + 0xBABA = 0  (mod 0x10000)`
 
-## General rules
-- Always backup .bin files before patching (.bin.bak)
-- Warn if new value equals current value (no-op change)
-- Projects folder name on target PCs: Eng_GBE_Image (fallback: GBE_Image)
-- Keep answers short and focused
-- Do NOT ask any questions beyond the 5 defined above
+---
+
+## XLSM column layout (sheet "full nvm map", data starts row 7)
+| Col | Content |
+|-----|---------|
+| A   | Word offset (e.g. "59h") |
+| B   | Bit(s) |
+| C   | RTL name |
+| D   | C-Spec name |
+| F   | Description |
+| G   | V value (Consumer / LAN SW) |
+| H   | LM value (Corporate / Non-LAN SW) |
+
+---
+
+## Output files
+Save in the project folder after build:
+- `change_request_<YYYYMMDD_HHMMSS>.json` — machine-readable change list
+- `change_report_<YYYYMMDD_HHMMSS>.txt`  — human-readable diff report
+
+---
+
+## Rules
+- Ask ONE question at a time. Wait for the answer before the next.
+- Do NOT ask anything beyond the 5 questions above.
+- Always show current V and LM values before asking for new value.
+- Warn if no-op (new value == current value).
+- Projects root folder: `GBE_Image_Creator/GBE_Image/` (relative to repo root).
