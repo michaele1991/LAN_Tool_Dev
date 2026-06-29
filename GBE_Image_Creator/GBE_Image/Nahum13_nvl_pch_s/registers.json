@@ -1,0 +1,592 @@
+[
+  {
+    "name": "Ethernet Address Byte 2, 1",
+    "word_index": 0,
+    "description": ""
+  },
+  {
+    "name": "Ethernet Address Byte 4, 3",
+    "word_index": 1,
+    "description": ""
+  },
+  {
+    "name": "Ethernet Address Byte 6, 5",
+    "word_index": 2,
+    "description": ""
+  },
+  {
+    "name": "Reserved (was SW Compatibility)",
+    "word_index": 3,
+    "description": ""
+  },
+  {
+    "name": "Reserved (was OEM LED Configuration)",
+    "word_index": 4,
+    "description": ""
+  },
+  {
+    "name": "Image Version Information 1",
+    "word_index": 5,
+    "description": ""
+  },
+  {
+    "name": "EETRACK ID",
+    "word_index": 6,
+    "description": ""
+  },
+  {
+    "name": "Reserved (was PBA Low)",
+    "word_index": 8,
+    "description": ""
+  },
+  {
+    "name": "PBA High",
+    "word_index": 9,
+    "description": ""
+  },
+  {
+    "name": "Reserved",
+    "word_index": 10,
+    "description": ""
+  },
+  {
+    "name": "AUX-PWR",
+    "word_index": 10,
+    "description": ""
+  },
+  {
+    "name": "PM-Ena",
+    "word_index": 10,
+    "description": ""
+  },
+  {
+    "name": "ENABLE_SSID_UP",
+    "word_index": 10,
+    "description": ""
+  },
+  {
+    "name": "ReservedIO BAR DisableReserved",
+    "word_index": 10,
+    "description": ""
+  },
+  {
+    "name": "Load Subsystem ID",
+    "word_index": 10,
+    "description": ""
+  },
+  {
+    "name": "Load Device ID",
+    "word_index": 10,
+    "description": ""
+  },
+  {
+    "name": "Subsystem ID",
+    "word_index": 11,
+    "description": ""
+  },
+  {
+    "name": "Subsystem Vendor ID",
+    "word_index": 12,
+    "description": ""
+  },
+  {
+    "name": "Device ID",
+    "word_index": 13,
+    "description": ""
+  },
+  {
+    "name": "Rserved",
+    "word_index": 14,
+    "description": ""
+  },
+  {
+    "name": "Device REV ID",
+    "word_index": 15,
+    "description": ""
+  },
+  {
+    "name": "LAN D0 Power",
+    "word_index": 16,
+    "description": ""
+  },
+  {
+    "name": "reserved",
+    "word_index": 16,
+    "description": ""
+  },
+  {
+    "name": "LAN D3 power",
+    "word_index": 16,
+    "description": ""
+  },
+  {
+    "name": "FEXTNVM7 Word 1",
+    "word_index": 17,
+    "description": ""
+  },
+  {
+    "name": "FEXTNVM7 Word 2",
+    "word_index": 18,
+    "description": ""
+  },
+  {
+    "name": "SIGN",
+    "word_index": 19,
+    "description": ""
+  },
+  {
+    "name": "Restricted / Reserved / Not for external Doc - LinkSec DisableNVM on PCIm",
+    "word_index": 19,
+    "description": ""
+  },
+  {
+    "name": "Ena NVM on PCIm reset",
+    "word_index": 19,
+    "description": ""
+  },
+  {
+    "name": "DPGEn",
+    "word_index": 19,
+    "description": ""
+  },
+  {
+    "name": "PHY PD Ena",
+    "word_index": 19,
+    "description": ""
+  },
+  {
+    "name": "Phy_Wake",
+    "word_index": 19,
+    "description": ""
+  },
+  {
+    "name": "PHYT",
+    "word_index": 19,
+    "description": ""
+  },
+  {
+    "name": "D/UD polarity",
+    "word_index": 19,
+    "description": ""
+  },
+  {
+    "name": "FRCSPD",
+    "word_index": 19,
+    "description": ""
+  },
+  {
+    "name": "FD",
+    "word_index": 19,
+    "description": ""
+  },
+  {
+    "name": "CLK_CNT_1_16Reserved",
+    "word_index": 19,
+    "description": ""
+  },
+  {
+    "name": "CLK_CNT_1_4Reserved",
+    "word_index": 19,
+    "description": ""
+  },
+  {
+    "name": "Dynamic Clock Gating",
+    "word_index": 19,
+    "description": ""
+  },
+  {
+    "name": "D/UD EN",
+    "word_index": 20,
+    "description": ""
+  },
+  {
+    "name": "LCD Write Enable",
+    "word_index": 20,
+    "description": ""
+  },
+  {
+    "name": "OEM Write Enable",
+    "word_index": 20,
+    "description": ""
+  },
+  {
+    "name": "Extended Configuration Pointer",
+    "word_index": 20,
+    "description": ""
+  },
+  {
+    "name": "Extended LCD Length",
+    "word_index": 21,
+    "description": ""
+  },
+  {
+    "name": "1000Enable",
+    "word_index": 21,
+    "description": ""
+  },
+  {
+    "name": "Extended Dock Length",
+    "word_index": 22,
+    "description": ""
+  },
+  {
+    "name": "B2B Enable",
+    "word_index": 23,
+    "description": ""
+  },
+  {
+    "name": "GbE Disable",
+    "word_index": 23,
+    "description": ""
+  },
+  {
+    "name": "GbE Disable in non-D0a",
+    "word_index": 23,
+    "description": ""
+  },
+  {
+    "name": "LPLU Enable in non-D0a",
+    "word_index": 23,
+    "description": ""
+  },
+  {
+    "name": "LPLU Enable in D0a",
+    "word_index": 23,
+    "description": ""
+  },
+  {
+    "name": "SPD Enable",
+    "word_index": 23,
+    "description": ""
+  },
+  {
+    "name": "LED1 Blink",
+    "word_index": 23,
+    "description": ""
+  },
+  {
+    "name": "LED1 Invert",
+    "word_index": 23,
+    "description": ""
+  },
+  {
+    "name": "LED1 Blink Mode",
+    "word_index": 23,
+    "description": ""
+  },
+  {
+    "name": "Filtered Act LED",
+    "word_index": 23,
+    "description": ""
+  },
+  {
+    "name": "LED1 Mode",
+    "word_index": 23,
+    "description": ""
+  },
+  {
+    "name": "Blink Rate",
+    "word_index": 24,
+    "description": ""
+  },
+  {
+    "name": "LED2 Blink",
+    "word_index": 24,
+    "description": ""
+  },
+  {
+    "name": "LED2 Invert",
+    "word_index": 24,
+    "description": ""
+  },
+  {
+    "name": "LED2 Mode",
+    "word_index": 24,
+    "description": ""
+  },
+  {
+    "name": "LED0 Blink",
+    "word_index": 24,
+    "description": ""
+  },
+  {
+    "name": "LED0 Invert",
+    "word_index": 24,
+    "description": ""
+  },
+  {
+    "name": "LED0 Mode",
+    "word_index": 24,
+    "description": ""
+  },
+  {
+    "name": "Drop Rx Packet fix",
+    "word_index": 25,
+    "description": ""
+  },
+  {
+    "name": "Auto PHYINT Clear fix",
+    "word_index": 25,
+    "description": ""
+  },
+  {
+    "name": "Zoar the XTX<->MAC (mtx_mac_int) synchronization bug fix",
+    "word_index": 25,
+    "description": ""
+  },
+  {
+    "name": "Update DMA PTR fix",
+    "word_index": 25,
+    "description": ""
+  },
+  {
+    "name": "Enable MDIO Watchdog Timer (MDIOWatchEna)",
+    "word_index": 25,
+    "description": ""
+  },
+  {
+    "name": "m2k_clk_enable_d",
+    "word_index": 25,
+    "description": ""
+  },
+  {
+    "name": "mac_clk_enable_d",
+    "word_index": 25,
+    "description": ""
+  },
+  {
+    "name": "gpt_clk_enable_d",
+    "word_index": 25,
+    "description": ""
+  },
+  {
+    "name": "wake_dma_clk_enable_d",
+    "word_index": 25,
+    "description": ""
+  },
+  {
+    "name": "dma_clk_enable_d",
+    "word_index": 25,
+    "description": ""
+  },
+  {
+    "name": "SW LCD Config Enable",
+    "word_index": 26,
+    "description": ""
+  },
+  {
+    "name": "LAN Disable Mode",
+    "word_index": 26,
+    "description": ""
+  },
+  {
+    "name": "Disable CLK gate Enable Due to D3hot.",
+    "word_index": 26,
+    "description": ""
+  },
+  {
+    "name": "K1_PLL_stop_En",
+    "word_index": 27,
+    "description": ""
+  },
+  {
+    "name": "K0s_100_En",
+    "word_index": 27,
+    "description": ""
+  },
+  {
+    "name": "K0s_GbE_En",
+    "word_index": 27,
+    "description": ""
+  },
+  {
+    "name": "Burst_EnUnblock_K_Rx",
+    "word_index": 27,
+    "description": ""
+  },
+  {
+    "name": "K1_En",
+    "word_index": 27,
+    "description": ""
+  },
+  {
+    "name": "SKU 10 Device ID",
+    "word_index": 30,
+    "description": ""
+  },
+  {
+    "name": "SKU 11 Device ID",
+    "word_index": 31,
+    "description": ""
+  },
+  {
+    "name": "SKU 13 Device ID",
+    "word_index": 33,
+    "description": ""
+  },
+  {
+    "name": "SKU 15 Device ID",
+    "word_index": 35,
+    "description": ""
+  },
+  {
+    "name": "FEXTNVM2 Word 1",
+    "word_index": 36,
+    "description": ""
+  },
+  {
+    "name": "FEXTNVM2 Word 2",
+    "word_index": 37,
+    "description": ""
+  },
+  {
+    "name": "FEXTNVM3 Word 1",
+    "word_index": 38,
+    "description": ""
+  },
+  {
+    "name": "FEXTNVM3 Word 2",
+    "word_index": 39,
+    "description": ""
+  },
+  {
+    "name": "uCTL Base Address",
+    "word_index": 40,
+    "description": ""
+  },
+  {
+    "name": "FEXTNVM4 Word 1",
+    "word_index": 42,
+    "description": ""
+  },
+  {
+    "name": "FEXTNVM4 Word 2",
+    "word_index": 43,
+    "description": ""
+  },
+  {
+    "name": "FEXTNVM5 Word 1",
+    "word_index": 44,
+    "description": ""
+  },
+  {
+    "name": "FEXTNVM5 Word 2",
+    "word_index": 45,
+    "description": ""
+  },
+  {
+    "name": "FEXTNVM6 Word 1",
+    "word_index": 46,
+    "description": ""
+  },
+  {
+    "name": "FEXTNVM6 Word 2",
+    "word_index": 47,
+    "description": ""
+  },
+  {
+    "name": "PXE Software Region",
+    "word_index": 48,
+    "description": ""
+  },
+  {
+    "name": "iSCSI pointer",
+    "word_index": 61,
+    "description": ""
+  },
+  {
+    "name": "SW XSUM, bytes 00h through 7Dh",
+    "word_index": 63,
+    "description": ""
+  },
+  {
+    "name": "G3 -> S5 LCD Configuration",
+    "word_index": 64,
+    "description": ""
+  },
+  {
+    "name": "FEXTNVM8 Word 1",
+    "word_index": 80,
+    "description": ""
+  },
+  {
+    "name": "FEXTNVM8 Word 2",
+    "word_index": 81,
+    "description": ""
+  },
+  {
+    "name": "FEXTNVM9 Word 1",
+    "word_index": 82,
+    "description": ""
+  },
+  {
+    "name": "FEXTNVM9 Word 2",
+    "word_index": 83,
+    "description": ""
+  },
+  {
+    "name": "FEXTNVM10 Word 1",
+    "word_index": 84,
+    "description": ""
+  },
+  {
+    "name": "FEXTNVM10 Word 0",
+    "word_index": 84,
+    "description": ""
+  },
+  {
+    "name": "FEXTNVM10 Word 2",
+    "word_index": 85,
+    "description": ""
+  },
+  {
+    "name": "FEXTNVM11 Word 1",
+    "word_index": 86,
+    "description": ""
+  },
+  {
+    "name": "FEXTNVM11 Word 2",
+    "word_index": 87,
+    "description": ""
+  },
+  {
+    "name": "FEXTNVM12 Word 1",
+    "word_index": 88,
+    "description": ""
+  },
+  {
+    "name": "FEXTNVM12 Word 2",
+    "word_index": 89,
+    "description": ""
+  },
+  {
+    "name": "FEXTNVM13 Word 1",
+    "word_index": 90,
+    "description": ""
+  },
+  {
+    "name": "FEXTNVM13 Word 2",
+    "word_index": 91,
+    "description": ""
+  },
+  {
+    "name": "FEXTNVM14 Word 1",
+    "word_index": 92,
+    "description": ""
+  },
+  {
+    "name": "FEXTNVM14 Word 2",
+    "word_index": 93,
+    "description": ""
+  },
+  {
+    "name": "FEXTNVM15 Word 1",
+    "word_index": 94,
+    "description": ""
+  },
+  {
+    "name": "FEXTNVM15 Word 2",
+    "word_index": 95,
+    "description": ""
+  }
+]
