@@ -959,13 +959,17 @@ class GbeImageEditor(tk.Tk):
                 # ── Try git clone first (faster, incremental) ──────────────
                 git_ok = False
                 self.after(0, lambda: status_var.set("Trying git clone…"))
-                git_result = subprocess.run(
-                    ["git", "clone", "--depth", "1", "-b", "master", REPO_URL, str(tmp_dir)],
-                    capture_output=True, text=True
-                )
-                if git_result.returncode == 0:
-                    git_ok = True
-                else:
+                try:
+                    git_result = subprocess.run(
+                        ["git", "clone", "--depth", "1", "-b", "master", REPO_URL, str(tmp_dir)],
+                        capture_output=True, text=True
+                    )
+                    if git_result.returncode == 0:
+                        git_ok = True
+                except FileNotFoundError:
+                    pass  # git not installed → fall through to ZIP
+
+                if not git_ok:
                     # ── Fallback: download ZIP via urllib (no git needed) ──
                     self.after(0, lambda: status_var.set("Downloading ZIP archive…"))
                     if tmp_dir.exists():
