@@ -7,16 +7,36 @@ Form-based: pick project / offset / bit / mode, then talk to Claude.
 
 import json
 import os
+import subprocess
 import sys
 import tkinter as tk
 from tkinter import filedialog, messagebox, scrolledtext, ttk
 from pathlib import Path
 import threading
 
-try:
-    import anthropic
-except ImportError:
-    anthropic = None
+REQUIRED_PACKAGES = ["anthropic", "openpyxl"]
+
+
+def _ensure_packages():
+    """Install any missing packages, then restart the process so imports succeed."""
+    missing = []
+    for pkg in REQUIRED_PACKAGES:
+        try:
+            __import__(pkg)
+        except ImportError:
+            missing.append(pkg)
+    if not missing:
+        return
+    # Show a quick console message (app window not open yet)
+    print(f"Installing missing packages: {', '.join(missing)} ...")
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "--quiet"] + missing)
+    # Restart the process so the freshly installed modules are importable
+    os.execv(sys.executable, [sys.executable] + sys.argv)
+
+
+_ensure_packages()
+
+import anthropic  # noqa: E402 — guaranteed present after _ensure_packages()
 
 APP_TITLE   = "Intel GBE NVM AI Assistant"
 APP_VERSION = "v1.0"
@@ -195,7 +215,7 @@ class NvmAiApp(tk.Tk):
                  font=("Segoe UI", 8), fg="#999", wraplength=220, justify=tk.LEFT).pack(anchor=tk.W)
 
         # Buttons
-        ttk.Button(parent, text="Ask Claude",
+        ttk.Button(parent, text="Ask AI",
                    command=self._ask).pack(fill=tk.X, pady=(14, 4))
         ttk.Button(parent, text="Clear Chat", command=self._clear_chat).pack(fill=tk.X, pady=2)
         ttk.Button(parent, text="Save Chat",  command=self._save_chat).pack(fill=tk.X, pady=2)
@@ -231,7 +251,7 @@ class NvmAiApp(tk.Tk):
         btn_row.pack(fill=tk.X, pady=(4, 0))
         ttk.Button(btn_row, text="Send  [Ctrl+Enter]",
                    command=self._send_followup).pack(side=tk.RIGHT, padx=4)
-        self.status_var = tk.StringVar(value="Fill the form above and click Ask Claude")
+        self.status_var = tk.StringVar(value="Fill the form above and click Ask AI")
         tk.Label(btn_row, textvariable=self.status_var,
                  font=("Segoe UI", 8), fg="#555").pack(side=tk.LEFT, padx=4)
 
@@ -272,9 +292,6 @@ class NvmAiApp(tk.Tk):
     # ── API ───────────────────────────────────────────────────────────────
 
     def _try_init_client(self):
-        if anthropic is None:
-            self.api_status_lbl.configure(text="API: anthropic not installed", fg="#cc0000")
-            return
         key = self.config_data.get("api_key", "").strip()
         if key:
             self.client = anthropic.Anthropic(api_key=key)
@@ -350,17 +367,13 @@ class NvmAiApp(tk.Tk):
             self.conversation.append({"role": "assistant", "content": reply})
             self.after(0, lambda: self._append_chat("assistant", reply))
             self.after(0, lambda: self.status_var.set(
-                "Done — ask a follow-up or change the form and click Ask Claude again"))
+                "Done — ask a follow-up or change the form and click Ask AI again"))
         except Exception as exc:
             err = str(exc)
             self.after(0, lambda: self._append_chat("error", f"API Error: {err}"))
             self.after(0, lambda: self.status_var.set("Error — see chat"))
 
     def _check_client(self):
-        if anthropic is None:
-            messagebox.showerror("Missing package",
-                "Run:  pip install anthropic\nThen restart the app.")
-            return False
         if not self.client:
             messagebox.showwarning("No API Key",
                 "Configure your Anthropic API key in Settings.")
