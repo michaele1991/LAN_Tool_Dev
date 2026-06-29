@@ -29,7 +29,8 @@ def _ensure_packages():
         return
     # Show a quick console message (app window not open yet)
     print(f"Installing missing packages: {', '.join(missing)} ...")
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "--quiet"] + missing)
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "--quiet",
+                           "--index-url", "https://pypi.org/simple/"] + missing)
     # Restart the process so the freshly installed modules are importable
     os.execv(sys.executable, [sys.executable] + sys.argv)
 
