@@ -959,13 +959,17 @@ class GbeImageEditor(tk.Tk):
                 # ── Try git clone first (faster, incremental) ──────────────
                 git_ok = False
                 self.after(0, lambda: status_var.set("Trying git clone…"))
-                git_result = subprocess.run(
-                    ["git", "clone", "--depth", "1", "-b", "master", REPO_URL, str(tmp_dir)],
-                    capture_output=True, text=True
-                )
-                if git_result.returncode == 0:
-                    git_ok = True
-                else:
+                try:
+                    git_result = subprocess.run(
+                        ["git", "clone", "--depth", "1", "-b", "master", REPO_URL, str(tmp_dir)],
+                        capture_output=True, text=True
+                    )
+                    if git_result.returncode == 0:
+                        git_ok = True
+                except FileNotFoundError:
+                    pass  # git not installed → fall through to ZIP
+
+                if not git_ok:
                     # ── Fallback: download ZIP via urllib (no git needed) ──
                     self.after(0, lambda: status_var.set("Downloading ZIP archive…"))
                     if tmp_dir.exists():
@@ -2334,7 +2338,7 @@ class GbeImageEditor(tk.Tk):
         added = 0
         existing_names = {r.name for r in self.registers}
         for row in self.excel_data:
-            name = row.get("name") or row.get("rtl_name") or row.get("description") or ""
+            name = row.get("name") or row.get("rtl_name") or ""
             name = str(name).strip()
             if not name or name in ("N/A", "None", ""):
                 continue
@@ -2346,10 +2350,23 @@ class GbeImageEditor(tk.Tk):
             except (ValueError, TypeError):
                 word_idx = 0
             if name not in existing_names:
-                rtl = str(row.get('rtl_name') or '').strip()
-                self.registers.append(RegisterDef(name=name, word_index=word_idx, rtl_name=rtl))
+                rtl  = str(row.get('rtl_name')    or '').strip()
+                desc = str(row.get('description') or '').strip()
+                self.registers.append(RegisterDef(name=name, word_index=word_idx,
+                                                  rtl_name=rtl, description=desc))
                 existing_names.add(name)
                 added += 1
+            else:
+                # Update description on existing entries from fresh excel data
+                desc = str(row.get('description') or '').strip()
+                rtl  = str(row.get('rtl_name')    or '').strip()
+                for reg in self.registers:
+                    if reg.name == name:
+                        if desc:
+                            reg.description = desc
+                        if rtl:
+                            reg.rtl_name = rtl
+                        break
         self.refresh_registers()
         if not silent:
             messagebox.showinfo("Registers", f"Added {added} registers from Excel data.")
@@ -2370,10 +2387,20 @@ class GbeImageEditor(tk.Tk):
             rtl = getattr(r, 'rtl_name', '') or ''
             return rtl == display_name or r.name == display_name
         reg = next((r for r in self.registers if _match(r)), None)
-        if reg and reg.description:
-            self.register_desc_var.set(reg.description)
-        else:
-            self.register_desc_var.set("")
+
+        # Pull description from live excel_data first (most up-to-date)
+        desc = ''
+        if reg:
+            # Look up matching row in excel_data by c-spec name
+            for row in (self.excel_data or []):
+                if row.get('name') == (reg.name if reg else '') or \
+                   row.get('rtl_name') == display_name:
+                    desc = str(row.get('description') or '').strip()
+                    if desc and desc not in ('N/A', 'None'):
+                        break
+        if not desc and reg:
+            desc = reg.description or ''
+        self.register_desc_var.set(desc)
         
         try:
             idx = int(values[1])
