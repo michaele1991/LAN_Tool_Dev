@@ -320,6 +320,10 @@ def _cli():
                         help="Variant: V, LM, or Both (default: Both)")
     parser.add_argument("--output",  "-o", default=None,
                         help="Output directory (default: ./output/<platform>)")
+    parser.add_argument("--change",  "-c", action="append", default=[],
+                        metavar="OFFSET[BIT]=VALUE[:VARIANT]",
+                        help="NVM bit override, e.g. 0x58[4]=0 or 0x58[4]=0:LM. "
+                             "Repeat for multiple changes.")
     args = parser.parse_args()
 
     root = _find_platforms_root()
@@ -350,7 +354,22 @@ def _cli():
     variants = ["V", "LM"] if args.variant == "Both" else [args.variant]
     out_dir  = Path(args.output) if args.output else None
 
-    build(platform_folder, args.step, args.version, variants, out_dir)
+    # Parse --change flags: 0x58[4]=0  or  0x58[4]=0:LM
+    import re as _re
+    nvm_changes = []
+    for raw in args.change:
+        m = _re.fullmatch(r'(0x[0-9a-fA-F]+|[0-9a-fA-F]+h?)\[(\d+)\]=(\d+)(?::([VLMBoth]+))?', raw.strip())
+        if not m:
+            print(f"ERROR: Cannot parse --change '{raw}'.  Expected format: 0x58[4]=0 or 0x58[4]=0:LM", file=sys.stderr)
+            sys.exit(1)
+        off  = _parse_offset(m.group(1))
+        bit  = int(m.group(2))
+        val  = int(m.group(3))
+        var  = m.group(4) or "Both"
+        var_list = ["V", "LM"] if var.lower() in ("both", "vlm", "lmv") else [v.strip() for v in var.split("+") if v.strip()]
+        nvm_changes.append({"offset": off, "bit": bit, "new_value": val, "variants": var_list})
+
+    build(platform_folder, args.step, args.version, variants, out_dir, nvm_changes if nvm_changes else None)
 
 
 if __name__ == "__main__":

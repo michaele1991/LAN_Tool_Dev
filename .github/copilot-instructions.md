@@ -3,75 +3,41 @@
 ## GBE Image Build Workflow  ← PRIMARY WORKFLOW
 
 When the user says anything like "build GBE image", "create NVM image", "make image for [project]",
-or "build [platform]", follow this exact 5-question workflow.
-Ask ONE question at a time. Wait for the answer before asking the next.
+or "build [platform]", ask these 5 questions **all at once in a single message**:
 
-### Questions to ask (in order):
-
-**Q1 — Platform**
-Run this command and show the numbered list to the user:
 ```
-.venv\Scripts\python.exe src\build_nvm.py --platform list 2>&1
-```
-If the venv does not exist, tell the user to run `setup.bat` first (or `bash setup.sh` on Linux/macOS).
-List all available platform folder names and ask: "Which platform? (enter number)"
-
-**Q2 — Silicon Step**
-Ask: "Silicon stepping? (e.g. A0, B0, C0) [default: A0]"
-
-**Q3 — Image Version**
-Ask: "Image version? (e.g. 1.4, 2.0) [default: 1.4]"
-
-**Q4 — Variant**
-Ask:
-```
-Which variant(s)?
-  [0] Both  — V (Consumer/LAN SW) + LM (Corporate/Non-LAN SW)  ← default
-  [1] V     — Consumer / LAN SW only
-  [2] LM    — Corporate / Non-LAN SW only
-Enter number:
+1. Platform?  (run: .venv\Scripts\python.exe src\build_nvm.py 2>&1 to list options if needed)
+2. Silicon step?  (e.g. A0, B0)
+3. Image version?  (e.g. 1.4)
+4. Variant?  Both / V / LM  [default: Both]
+5. NVM changes?  e.g. "0x58[4]=0"  or  "none"
 ```
 
-**Q5 — NVM Modifications**
-Ask: "Any NVM register changes? Specify by register name, bit, and value. Type 'none' to skip."
+Once you have all 5 answers, run a **single command** — no interactive prompts:
 
-The user specifies changes as natural language, e.g.:
-- `"FEXTNVM12 bit 4 = 0 for Both"`
-- `"Device ID = 0x57BA for V"`
-- `"0x58 bit 4 = 0"`
-- `"none"` — build base map without changes
-
-For each change:
-1. Search the xlsm C-Spec/RTL name columns for a case-insensitive partial match to find the offset.
-2. Show the offset (e.g. 0x58), the register name, and current V/LM values for that bit.
-3. Warn if the new value equals the current value (no-op).
-4. After all changes collected, show the full change list.
-
-**Confirm**
-Show the complete build summary including NVM changes, then ask: "Build now? [Y/n]"
-
-### Execute the build
-When the user confirms, run:
+```powershell
+.venv\Scripts\python.exe src\build_nvm.py `
+  --platform <platform> `
+  --step <step> `
+  --version <version> `
+  --variant <Both|V|LM> `
+  --change <offset>[<bit>]=<value>
 ```
-.venv\Scripts\python.exe src\wizard.py
-```
-(wizard handles the full interactive flow including nvm_changes)
 
-Or for headless/scripted builds, run:
+**NVM change format:** `--change 0x58[4]=0`  (repeat for multiple changes)
+Variant suffix optional: `--change 0x58[4]=0:LM`  (default = Both)
+
+### Example — complete one-liner:
+```powershell
+.venv\Scripts\python.exe src\build_nvm.py --platform Nahum11_lnl_m --step A0 --version 0.8 --variant Both --change 0x58[4]=0
 ```
-.venv\Scripts\python.exe src\build_nvm.py \
-  --platform <platform_folder_name> \
-  --step <step> \
-  --version <version> \
-  --variant <V|LM|Both>
-```
-Show the output. If it succeeds, tell the user where the .bin files are.
 
 ### Rules
-- Do NOT ask any questions beyond the 5 defined above
-- Do NOT require Excel or any paid tools — build_nvm.py is pure Python
-- If venv is missing, instruct: `setup.bat` (Windows) or `bash setup.sh` (Linux/macOS) — run from inside `NVM_AI_Assistant/`
-- Output goes to `NVM_AI_Assistant/output/<platform>/`
+- Ask all 5 questions together in one message, then build with one command
+- Do NOT use wizard.py (it is for manual interactive use only)
+- Do NOT require Excel — build_nvm.py is pure Python
+- If venv is missing: run `setup.bat` (Windows) or `bash setup.sh` (Linux/macOS) from inside `NVM_AI_Assistant/`
+- Output goes to `output/<platform>/`  — path is printed at end of build
 
 ---
 
