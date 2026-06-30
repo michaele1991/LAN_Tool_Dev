@@ -11,12 +11,15 @@ cd LAN_Tool_Dev
 ```
 
 ### 2. Setup (once)
+```bash
+cd NVM_AI_Assistant
+```
 | OS | Command |
-|----|---------|
+|----|------|
 | Windows | `setup.bat` |
 | Linux / macOS | `bash setup.sh` |
 
-Requires **Python 3.10+**. Only dependency: `openpyxl`.
+Requires **Python 3.10+**. Installs `openpyxl` + `anthropic`.
 
 ### 3. Build
 | OS | Command |
@@ -68,22 +71,21 @@ output/Nahum13_ptl_pcd_p_h/
 
 ```
 LAN_Tool_Dev/
-├── build.bat / build.sh          ← run to start the build wizard
-├── setup.bat / setup.sh          ← run once after cloning
-├── requirements.txt              ← openpyxl only
-│
-├── GBE_Builder/
-│   ├── build_nvm.py              ← pure Python NVM assembler (core engine)
-│   ├── wizard.py                 ← interactive 5-question CLI
-│   └── gbe_build.py              ← legacy bit-patch tool
-│
-├── GBE_Image_Creator/
-│   └── GBE_Image/                ← 29 platform folders, each with *.xlsm
-│       ├── Nahum13_ptl_pcd_p_h/
-│       ├── Nahum11_mtl_m_p/
-│       └── ...
-│
-└── output/                       ← generated files (git-ignored)
+├── NVM_AI_Assistant/
+│   ├── build.bat / build.sh      ← run to start the 5-question build wizard
+│   ├── setup.bat / setup.sh      ← run once after cloning
+│   ├── RUN_APP.bat               ← run the Claude-powered NVM advisor GUI
+│   ├── requirements.txt          ← anthropic + openpyxl
+│   ├── output/                   ← generated .bin/.txt files (git-ignored)
+│   └── src/
+│       ├── app.py                ← AI NVM advisor GUI (Claude)
+│       ├── build_nvm.py          ← pure Python NVM assembler (core engine)
+│       └── wizard.py             ← interactive 5-question CLI
+└── GBE_Image_Creator/
+    └── GBE_Image/                ← 29 platform folders, each with *.xlsm
+        ├── Nahum13_ptl_pcd_p_h/
+        ├── Nahum11_mtl_m_p/
+        └── ...
 ```
 
 ---
@@ -114,15 +116,17 @@ LAN_Tool_Dev/
 ## Advanced: CLI Usage
 
 ```bash
+cd NVM_AI_Assistant
+
 # Build a specific platform directly (no wizard prompts)
-.venv/bin/python GBE_Builder/build_nvm.py \
+.venv/bin/python src/build_nvm.py \
   --platform Nahum13_ptl_pcd_p_h \
   --step A0 \
   --version 1.4 \
   --variant Both
 
 # List all platforms
-.venv/bin/python GBE_Builder/build_nvm.py --platform list
+.venv/bin/python src/build_nvm.py --platform list
 ```
 
 ---

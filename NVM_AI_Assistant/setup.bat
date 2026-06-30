@@ -6,6 +6,7 @@
 echo.
 echo  GBE NVM Builder — Environment Setup
 echo  =====================================
+cd /d "%~dp0"
 
 :: Check Python
 python --version >nul 2>&1
@@ -20,7 +21,7 @@ python -m venv .venv
 
 echo  Installing dependencies...
 .venv\Scripts\python.exe -m pip install --quiet --upgrade pip
-.venv\Scripts\python.exe -m pip install --quiet openpyxl
+.venv\Scripts\python.exe -m pip install --quiet -r requirements.txt
 
 echo.
 echo  Setup complete!

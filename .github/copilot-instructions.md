@@ -11,7 +11,7 @@ Ask ONE question at a time. Wait for the answer before asking the next.
 **Q1 — Platform**
 Run this command and show the numbered list to the user:
 ```
-.venv\Scripts\python.exe GBE_Builder\build_nvm.py --platform list 2>&1
+.venv\Scripts\python.exe src\build_nvm.py --platform list 2>&1
 ```
 If the venv does not exist, tell the user to run `setup.bat` first (or `bash setup.sh` on Linux/macOS).
 List all available platform folder names and ask: "Which platform? (enter number)"
@@ -46,7 +46,7 @@ Ask: "Build now? [Y/n]"
 ### Execute the build
 When the user confirms, run:
 ```
-.venv\Scripts\python.exe GBE_Builder\build_nvm.py \
+.venv\Scripts\python.exe src\build_nvm.py \
   --platform <platform_folder_name> \
   --step <step> \
   --version <version> \
@@ -57,8 +57,8 @@ Show the output. If it succeeds, tell the user where the .bin files are.
 ### Rules
 - Do NOT ask any questions beyond the 5 defined above
 - Do NOT require Excel or any paid tools — build_nvm.py is pure Python
-- If venv is missing, instruct: `setup.bat` (Windows) or `bash setup.sh` (Linux/macOS)
-- Output goes to `output/<platform>/` at the repo root
+- If venv is missing, instruct: `setup.bat` (Windows) or `bash setup.sh` (Linux/macOS) — run from inside `NVM_AI_Assistant/`
+- Output goes to `NVM_AI_Assistant/output/<platform>/`
 
 ---
 
@@ -80,16 +80,20 @@ Then ask: "Any more changes? (y/n)" — loop back to Q2 or show summary and run 
 
 ```
 LAN_Tool_Dev/
-├── build.bat / build.sh        <- double-click to run the 5-question wizard
-├── setup.bat / setup.sh        <- run once after cloning to create venv
-├── requirements.txt            <- openpyxl only
-├── output/                     <- generated .bin/.txt files (git-ignored)
-├── GBE_Builder/
-│   ├── build_nvm.py            <- pure Python NVM assembler (PRIMARY BUILD TOOL)
-│   ├── wizard.py               <- interactive 5-question CLI wrapper
-│   └── gbe_build.py            <- legacy bit-patch CLI
+├── .gitignore
+├── README.md
+├── NVM_AI_Assistant/           ← all NVM tools live here
+│   ├── build.bat / build.sh    ← double-click to run the 5-question wizard
+│   ├── setup.bat / setup.sh    ← run once after cloning to create venv
+│   ├── RUN_APP.bat             ← run the Claude-powered NVM advisor GUI
+│   ├── requirements.txt        ← anthropic + openpyxl
+│   ├── output/                 ← generated .bin/.txt files (git-ignored)
+│   └── src/
+│       ├── app.py              ← Claude-powered NVM advisor GUI
+│       ├── build_nvm.py        ← pure Python NVM assembler (PRIMARY BUILD TOOL)
+│       └── wizard.py           ← interactive 5-question CLI wrapper
 └── GBE_Image_Creator/
-    └── GBE_Image/              <- platform folders, each with *.xlsm NVM map
+    └── GBE_Image/              ← platform folders, each with *.xlsm NVM map
         ├── Nahum13_ptl_pcd_p_h/
         ├── Nahum11_mtl_m_p/
         └── ... (29 platforms)

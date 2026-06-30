@@ -17,8 +17,9 @@ echo " Creating virtual environment (.venv)..."
 python3 -m venv .venv
 
 echo " Installing dependencies..."
+cd "$(dirname "$0")"
 .venv/bin/python -m pip install --quiet --upgrade pip
-.venv/bin/python -m pip install --quiet openpyxl
+.venv/bin/python -m pip install --quiet -r requirements.txt
 
 echo ""
 echo " Setup complete!"
