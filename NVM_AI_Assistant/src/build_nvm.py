@@ -220,13 +220,35 @@ def read_general_variable(xlsm_path: Path) -> dict[str, str]:
     return info
 
 
+def apply_nvm_changes(words: dict[int, int], changes: list[dict],
+                      variant: str) -> dict[int, int]:
+    """
+    Apply bit-level overrides to the assembled word dict.
+    Each change: {offset, bit, new_value, variants}  where variants is ['V'], ['LM'], or ['V','LM']
+    """
+    for c in changes:
+        if variant not in c["variants"]:
+            continue
+        off = c["offset"]
+        bit = c["bit"]
+        val = c["new_value"]
+        word = words.get(off, 0)
+        if val:
+            word |=  (1 << bit)
+        else:
+            word &= ~(1 << bit)
+        words[off] = word & 0xFFFF
+    return words
+
+
 # ── build pipeline ─────────────────────────────────────────────────────────
 
 def build(platform_folder: Path,
           step: str,
           version: str,
           variants: list[str],
-          output_dir: Path | None = None) -> list[Path]:
+          output_dir: Path | None = None,
+          nvm_changes: list[dict] | None = None) -> list[Path]:
     """
     Full build for one platform.
     Returns list of output .bin paths.
@@ -258,6 +280,13 @@ def build(platform_folder: Path,
 
         print(f"\nAssembling {label}...")
         words = assemble_words(fields, variant)
+        if nvm_changes:
+            words = apply_nvm_changes(words, nvm_changes, variant)
+            applied = [c for c in nvm_changes if variant in c["variants"]]
+            if applied:
+                print(f"  Applying {len(applied)} NVM override(s):")
+                for c in applied:
+                    print(f"    0x{c['offset']:02X} bit {c['bit']} → {c['new_value']}")
         words = apply_checksum(words)
 
         bin_path = output_dir / f"{fname}.bin"
