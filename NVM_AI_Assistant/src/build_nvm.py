@@ -298,6 +298,7 @@ def build(platform_folder: Path,
         csum = words.get(CSUM_WORD, 0)
         size = len(words_to_bytes(words))
         print(f"  ✓  {bin_path.name}  ({size} bytes, checksum=0x{csum:04X})")
+        print(f"     {bin_path}")
         outputs.append(bin_path)
 
     print(f"\nOutput folder: {output_dir}")
