@@ -300,6 +300,7 @@ def build(platform_folder: Path,
         print(f"  ✓  {bin_path.name}  ({size} bytes, checksum=0x{csum:04X})")
         outputs.append(bin_path)
 
+    print(f"\nOutput folder: {output_dir}")
     return outputs
 
 
