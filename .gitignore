@@ -1,0 +1,13 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+*.egg-info/
+
+# Build output (generated NVM images)
+output/
+
+# Keys / config
+NVM_AI_Assistant/src/config.json
+*.key

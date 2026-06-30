@@ -1,127 +1,114 @@
-﻿# GBE Image Builder — AI Workflow Instructions
+﻿# LAN Tool Dev — Copilot Instructions
 
-## Trigger
-When the user says anything like "create GBE image", "build image", "make NVM image",
-or "create image for [project]" — execute the workflow below automatically.
-Do NOT ask the user to explain anything. Just start with Q1.
+## GBE Image Build Workflow  ← PRIMARY WORKFLOW
+
+When the user says anything like "build GBE image", "create NVM image", "make image for [project]",
+or "build [platform]", follow this exact 5-question workflow.
+Ask ONE question at a time. Wait for the answer before asking the next.
+
+### Questions to ask (in order):
+
+**Q1 — Platform**
+Run this command and show the numbered list to the user:
+```
+.venv\Scripts\python.exe GBE_Builder\build_nvm.py --platform list 2>&1
+```
+If the venv does not exist, tell the user to run `setup.bat` first (or `bash setup.sh` on Linux/macOS).
+List all available platform folder names and ask: "Which platform? (enter number)"
+
+**Q2 — Silicon Step**
+Ask: "Silicon stepping? (e.g. A0, B0, C0) [default: A0]"
+
+**Q3 — Image Version**
+Ask: "Image version? (e.g. 1.4, 2.0) [default: 1.4]"
+
+**Q4 — Variant**
+Ask:
+```
+Which variant(s)?
+  [0] Both  — V (Consumer/LAN SW) + LM (Corporate/Non-LAN SW)  ← default
+  [1] V     — Consumer / LAN SW only
+  [2] LM    — Corporate / Non-LAN SW only
+Enter number:
+```
+
+**Q5 — Confirm**
+Show a build summary:
+```
+  Platform : <selected platform folder>
+  Step     : <step>
+  Version  : <version>
+  Variant  : <variant(s)>
+  Output   : output/<platform>/
+```
+Ask: "Build now? [Y/n]"
+
+### Execute the build
+When the user confirms, run:
+```
+.venv\Scripts\python.exe GBE_Builder\build_nvm.py \
+  --platform <platform_folder_name> \
+  --step <step> \
+  --version <version> \
+  --variant <V|LM|Both>
+```
+Show the output. If it succeeds, tell the user where the .bin files are.
+
+### Rules
+- Do NOT ask any questions beyond the 5 defined above
+- Do NOT require Excel or any paid tools — build_nvm.py is pure Python
+- If venv is missing, instruct: `setup.bat` (Windows) or `bash setup.sh` (Linux/macOS)
+- Output goes to `output/<platform>/` at the repo root
 
 ---
 
-## Step-by-step workflow
+## NVM Bit-Patch Workflow  ← for patching individual bits in existing images
 
-### Q1 — Project
-Run this and show as a numbered list:
-```powershell
-Get-ChildItem "GBE_Image_Creator\GBE_Image" -Directory | Select-Object -ExpandProperty Name | Sort-Object
-```
-Ask: "Which project? (enter number or name prefix)"
+When the user says "patch", "change bit", "set offset", or asks about a specific NVM bit:
 
-### Q2 — Offset
-Ask: "NVM word offset? (hex, e.g. 0x59)"
+**Q1 - Project:** List folders under `GBE_Image_Creator/GBE_Image/` and ask which one.
+**Q2 - Offset:** Ask: "NVM word offset? (hex, e.g. 0x59)" — then show the bits table from the XLSM.
+**Q3 - Bit:** Ask: "Which bit to change?"
+**Q4 - Mode:** Ask: "V, LM, or Both?"
+**Q5 - Value:** Ask: "New value? (0 or 1)" — warn if it matches the current value.
 
-Then immediately look up and display all bits at that offset:
-```python
-from openpyxl import load_workbook
-from pathlib import Path
-
-project = "<chosen project>"
-xlsm = next(Path(f"GBE_Image_Creator/GBE_Image/{project}").glob("*.xlsm"))
-wb = load_workbook(str(xlsm), read_only=True, data_only=True, keep_vba=False)
-ws = wb["full nvm map"]
-offset_target = "<user offset>"  # normalize: strip 0x, add h -> e.g. "59h"
-for row in ws.iter_rows(min_row=7, values_only=True):
-    if row[0] and row[0].lower().strip() == offset_target:
-        print(f"Bit {row[1]:>4}  {row[2]:<45}  V={row[6]}  LM={row[7]}")
-wb.close()
-```
-Show as table: Bit | RTL name | Description | Current V | Current LM
-
-### Q3 — Bit
-Ask: "Which bit?"
-
-### Q4 — Mode
-Ask: "V, LM, or Both?"
-
-### Q5 — New value
-Ask: "New value? (0 or 1)"
-If new value == current value → warn: "Already set to that value."
-
-### Done check
-Ask: "Any more changes? (y/n)"
-- y → go back to Q2 (same project)
-- n → show full change summary table, then ask "Build now? (y/n)"
+Then ask: "Any more changes? (y/n)" — loop back to Q2 or show summary and run `gbe_build.py`.
 
 ---
 
-## Build — patch the binaries
+## Repository Structure
 
-When user confirms build, execute this Python logic for each change:
-
-```python
-import struct, shutil
-from pathlib import Path
-
-project = "<chosen project>"
-proj_dir = Path(f"GBE_Image_Creator/GBE_Image/{project}")
-
-# Find V (Consumer) and LM (Corporate) output dirs
-out_dirs = [d for d in proj_dir.iterdir() if d.is_dir()]
-cons_dir = next((d for d in out_dirs if any(x in d.name.lower() for x in ("cons","_v_","lan"))), out_dirs[0])
-corp_dir = next((d for d in out_dirs if any(x in d.name.lower() for x in ("corp","lm","non"))), out_dirs[-1])
-
-def patch(bin_path, offset_int, bit_int, new_bit):
-    data = bytearray(bin_path.read_bytes())
-    pos = offset_int * 2
-    old = struct.unpack_from("<H", data, pos)[0]
-    new = (old | (1 << bit_int)) if new_bit else (old & ~(1 << bit_int))
-    struct.pack_into("<H", data, pos, new)
-    # recalculate checksum at 0x3F
-    cpos = 0x3F * 2
-    struct.pack_into("<H", data, cpos, 0)
-    s = sum(struct.unpack_from("<H", data, i)[0] for i in range(0, cpos, 2))
-    csum = (0xBABA - s) & 0xFFFF
-    struct.pack_into("<H", data, cpos, csum)
-    bin_path.write_bytes(data)
-    return old, new, csum
-
-# For each change:
-#   if mode in (V, Both)  -> patch cons_dir/*.bin
-#   if mode in (LM, Both) -> patch corp_dir/*.bin
-# Also patch the matching *.txt file (same word positions, space-separated hex)
+```
+LAN_Tool_Dev/
+├── build.bat / build.sh        <- double-click to run the 5-question wizard
+├── setup.bat / setup.sh        <- run once after cloning to create venv
+├── requirements.txt            <- openpyxl only
+├── output/                     <- generated .bin/.txt files (git-ignored)
+├── GBE_Builder/
+│   ├── build_nvm.py            <- pure Python NVM assembler (PRIMARY BUILD TOOL)
+│   ├── wizard.py               <- interactive 5-question CLI wrapper
+│   └── gbe_build.py            <- legacy bit-patch CLI
+└── GBE_Image_Creator/
+    └── GBE_Image/              <- platform folders, each with *.xlsm NVM map
+        ├── Nahum13_ptl_pcd_p_h/
+        ├── Nahum11_mtl_m_p/
+        └── ... (29 platforms)
 ```
 
-Always backup `.bin` → `.bin.bak` before patching.
-
----
+## XLSM Column Layout (sheet: "full nvm map", data from row 7)
+- Col A: LAN Word Offset (e.g. "0ah", "1Fh")
+- Col B: Bits (e.g. "15:0", "7", "11:8")
+- Col C: RTL name
+- Col D: C-Spec name
+- Col F: Description
+- Col G: V value  — Consumer / LAN SW
+- Col H: LM value — Corporate / Non-LAN SW
 
 ## Checksum rule
-`sum(word[0x00] .. word[0x3E]) + word[0x3F] + 0xBABA = 0  (mod 0x10000)`
+Word 0x3F must satisfy: `sum(word[0x00..0x3E]) + word[0x3F] + 0xBABA ≡ 0 (mod 0x10000)`
+`build_nvm.py` calculates and applies this automatically.
 
----
-
-## XLSM column layout (sheet "full nvm map", data starts row 7)
-| Col | Content |
-|-----|---------|
-| A   | Word offset (e.g. "59h") |
-| B   | Bit(s) |
-| C   | RTL name |
-| D   | C-Spec name |
-| F   | Description |
-| G   | V value (Consumer / LAN SW) |
-| H   | LM value (Corporate / Non-LAN SW) |
-
----
-
-## Output files
-Save in the project folder after build:
-- `change_request_<YYYYMMDD_HHMMSS>.json` — machine-readable change list
-- `change_report_<YYYYMMDD_HHMMSS>.txt`  — human-readable diff report
-
----
-
-## Rules
-- Ask ONE question at a time. Wait for the answer before the next.
-- Do NOT ask anything beyond the 5 questions above.
-- Always show current V and LM values before asking for new value.
-- Warn if no-op (new value == current value).
-- Projects root folder: `GBE_Image_Creator/GBE_Image/` (relative to repo root).
+## General rules
+- Always backup .bin files before patching (.bin.bak)
+- Keep answers short and focused
+- Platforms folder: `GBE_Image_Creator/GBE_Image/` (or `Eng_GBE_Image/` on target PCs)
