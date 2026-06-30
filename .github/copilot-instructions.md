@@ -39,6 +39,16 @@ Variant suffix optional: `--change 0x58[4]=0:LM`  (default = Both)
 - If venv is missing: run `setup.bat` (Windows) or `bash setup.sh` (Linux/macOS) from inside `NVM_AI_Assistant/`
 - Output goes to `output/<platform>/`  — path is printed at end of build
 
+### ⛔ NEVER modify source files
+The following files are **READ-ONLY** — never edit, patch, or rewrite them under any circumstances:
+- `NVM_AI_Assistant/src/build_nvm.py`
+- `NVM_AI_Assistant/src/wizard.py`
+- `NVM_AI_Assistant/src/app.py`
+- `GBE_Image_Creator/GBE_Image/**/*.xlsm`  (NVM map spreadsheets)
+
+If a build fails, **diagnose only** — fix by adjusting CLI arguments, not by touching source code.
+To request a source change, tell the user explicitly what change is needed and why; do NOT make it yourself.
+
 ---
 
 ## NVM Bit-Patch Workflow  ← for patching individual bits in existing images
