@@ -16,6 +16,7 @@ Option Explicit
         xl.Application.Visible = False
         xl.Application.run "n11_mtl_m_p_nvm_map.xlsm!Module1.genNvmCMDline"
         xl.DisplayAlerts = False        
+        xlBook.Save = True
 		
         xl.activewindow.close
         xl.Quit
