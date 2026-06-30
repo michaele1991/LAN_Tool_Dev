@@ -76,33 +76,119 @@ def lookup_offset_bits(xlsm_path: Path, offset: int) -> list[dict]:
     return rows
 
 
+def load_all_offsets(xlsm_path: Path) -> list[dict]:
+    """
+    Return an ordered list of all unique NVM offsets from the xlsm.
+    Each entry: {offset_int, offset_hex, name, bits_list}
+    where bits_list = [{bits, name, v, lm}, ...]
+    """
+    wb = load_workbook(str(xlsm_path), read_only=True, data_only=True, keep_vba=False)
+    ordered: dict[int, dict] = {}
+    if NVM_SHEET in wb.sheetnames:
+        ws = wb[NVM_SHEET]
+        for row in ws.iter_rows(min_row=DATA_ROW, values_only=True):
+            if row[COL_OFFSET] is None:
+                continue
+            off = _parse_offset(row[COL_OFFSET])
+            if off is None:
+                continue
+            if off not in ordered:
+                name = str(row[COL_CSPEC] or row[COL_RTL] or "").strip()
+                ordered[off] = {"offset": off, "name": name, "bits_list": []}
+            ordered[off]["bits_list"].append({
+                "bits": str(row[COL_BITS]  or "").strip(),
+                "name": str(row[COL_CSPEC] or row[COL_RTL] or "").strip(),
+                "v":    str(row[COL_V]     or "").strip(),
+                "lm":   str(row[COL_LM]    or "").strip(),
+            })
+    wb.close()
+    return [v for v in sorted(ordered.values(), key=lambda x: x["offset"])]
+
+
+def find_register(all_offsets: list[dict], query: str) -> list[dict]:
+    """
+    Find registers by name (case-insensitive partial match), hex offset, or list index.
+    Returns list of matching entries (usually 1, could be >1 for ambiguous names).
+    """
+    q = query.strip().lower()
+
+    # Try list index
+    try:
+        idx = int(q)
+        if 0 <= idx < len(all_offsets):
+            return [all_offsets[idx]]
+        return []
+    except ValueError:
+        pass
+
+    # Try hex offset (0x58 or 58h or 58)
+    try:
+        off = int(q, 0) if q.startswith("0x") else int(q.rstrip("h"), 16)
+        match = [r for r in all_offsets if r["offset"] == off]
+        if match:
+            return match
+    except ValueError:
+        pass
+
+    # Partial name match (search across ALL bit-field names within each register)
+    results = []
+    for reg in all_offsets:
+        # Check the register-level name or any individual bit-field name
+        all_names = [reg["name"]] + [b["name"] for b in reg["bits_list"]]
+        if any(q in n.lower() for n in all_names):
+            results.append(reg)
+    return results
+
+
 def collect_nvm_changes(xlsm_path: Path) -> list[dict]:
     """
     Interactively collect bit-level NVM overrides.
+    User inputs register name, hex offset, or list number — then bit + value.
     Returns list of: {offset, bit, new_value, variants}
     """
     changes = []
+    all_offsets = load_all_offsets(xlsm_path)
+
     print("\n── Q5 / 5 ── NVM Modifications")
-    print("  Specify any bit overrides on top of the base NVM map.")
-    print("  Press Enter (no offset) or type 'done' to skip.\n")
+    print("  Specify changes by register name, hex offset, or list number.")
+    print("  Examples:  'FEXTNVM12'  |  '0x58'  |  '87'  |  'Device ID'")
+    print("  Type 'list' to show all registers, or press Enter to skip.\n")
 
     while True:
-        raw = ask("  Offset (hex, e.g. 0x58) or 'done'").strip()
+        raw = ask("  Register name / offset (or 'done')").strip()
         if not raw or raw.lower() in ("done", "none", "skip"):
             break
 
-        try:
-            offset = int(raw, 0) if raw.lower().startswith("0x") else int(raw, 16)
-        except ValueError:
-            print("  Invalid offset — use hex e.g. 0x58")
+        if raw.lower() == "list":
+            print(f"\n  {'#':>4}  {'Offset':6}  Name")
+            print("  " + "-" * 55)
+            for i, reg in enumerate(all_offsets):
+                print(f"  {i:>4}  0x{reg['offset']:02X}     {reg['name'][:48]}")
+            print()
             continue
 
-        bit_rows = lookup_offset_bits(xlsm_path, offset)
-        if not bit_rows:
-            print(f"  Offset 0x{offset:02X} not found in NVM map.")
+        matches = find_register(all_offsets, raw)
+
+        if not matches:
+            print(f"  No register found matching '{raw}'. Try 'list' to browse all.")
             continue
 
-        print(f"\n  Offset 0x{offset:02X} — {bit_rows[0]['name']}:")
+        if len(matches) > 1:
+            print(f"  Multiple matches for '{raw}':")
+            for i, m in enumerate(matches):
+                print(f"    [{i}]  0x{m['offset']:02X}  {m['name']}")
+            sel = ask("  Which one?", "0")
+            try:
+                matches = [matches[int(sel)]]
+            except (ValueError, IndexError):
+                print("  Invalid selection.")
+                continue
+
+        reg_entry = matches[0]
+        offset    = reg_entry["offset"]
+        bit_rows  = reg_entry["bits_list"]
+
+        print(f"\n  Register 0x{offset:02X} — {reg_entry['name']}:")
         print(f"  {'Bit(s)':8}  {'Current V':10}  {'Current LM':10}")
         print("  " + "-" * 32)
         for r in bit_rows:

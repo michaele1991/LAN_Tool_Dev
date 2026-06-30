@@ -32,19 +32,32 @@ Which variant(s)?
 Enter number:
 ```
 
-**Q5 — Confirm**
-Show a build summary:
-```
-  Platform : <selected platform folder>
-  Step     : <step>
-  Version  : <version>
-  Variant  : <variant(s)>
-  Output   : output/<platform>/
-```
-Ask: "Build now? [Y/n]"
+**Q5 — NVM Modifications**
+Ask: "Any NVM register changes? Specify by register name, bit, and value. Type 'none' to skip."
+
+The user specifies changes as natural language, e.g.:
+- `"FEXTNVM12 bit 4 = 0 for Both"`
+- `"Device ID = 0x57BA for V"`
+- `"0x58 bit 4 = 0"`
+- `"none"` — build base map without changes
+
+For each change:
+1. Search the xlsm C-Spec/RTL name columns for a case-insensitive partial match to find the offset.
+2. Show the offset (e.g. 0x58), the register name, and current V/LM values for that bit.
+3. Warn if the new value equals the current value (no-op).
+4. After all changes collected, show the full change list.
+
+**Confirm**
+Show the complete build summary including NVM changes, then ask: "Build now? [Y/n]"
 
 ### Execute the build
 When the user confirms, run:
+```
+.venv\Scripts\python.exe src\wizard.py
+```
+(wizard handles the full interactive flow including nvm_changes)
+
+Or for headless/scripted builds, run:
 ```
 .venv\Scripts\python.exe src\build_nvm.py \
   --platform <platform_folder_name> \
