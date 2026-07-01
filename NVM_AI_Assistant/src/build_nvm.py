@@ -49,6 +49,14 @@ VAR_COL    = {"V": COL_V, "LM": COL_LM}
 VAR_LABEL  = {"V": "Consumer (V)",  "LM": "Corporate (LM)"}
 VAR_SUFFIX = {"V": "Cons_Prod_NA",  "LM": "Corp_Prod_NA"}
 
+# Extended NVM sections (LCD extension + iSCSI)
+# These sheets store offsets that map to binary via: binary_word = sheet_offset + EXT_OFFSET_DELTA
+LCD_EXT_SHEET_V   = "LCD extention non LAN SW"  # Consumer variant
+LCD_EXT_SHEET_LM  = "LCD extention LAN SW"       # Corporate variant
+ISCSI_SHEET       = "ISCSI_MODULE"
+EXT_OFFSET_DELTA  = 8    # binary_word = sheet_offset + EXT_OFFSET_DELTA
+EXT_ZERO_PAD      = 0x0000  # undefined words in extended region filled with 0x0000
+
 
 # ── helpers ────────────────────────────────────────────────────────────────
 
@@ -159,6 +167,58 @@ def read_nvm_fields(xlsm_path: Path) -> dict[int, list[dict]]:
 
     wb.close()
     return fields
+
+
+def read_extended_fields(xlsm_path: Path, variant: str
+                         ) -> tuple[dict[int, list[dict]], list[tuple[int, int]]]:
+    """
+    Read LCD-extension and iSCSI sheets from the xlsm.
+    Offsets in these sheets are remapped: binary_word = sheet_offset + EXT_OFFSET_DELTA.
+    Both variants use LCD_EXT_SHEET_V (non LAN SW) — confirmed by reference binary comparison.
+    Both variants share the same ISCSI_SHEET data.
+
+    Returns:
+        fields   — field dict in the same format as read_nvm_fields()
+        sections — list of (min_binary_off, max_binary_off) per sheet,
+                   used for per-section 0x0000 fill (gap between sections stays 0xFFFF)
+    """
+    _ = variant  # both V and LM use the same LCD ext sheet (non LAN SW)
+    wb = load_workbook(str(xlsm_path), read_only=True, data_only=True, keep_vba=False)
+    fields: dict[int, list[dict]] = {}
+    sections: list[tuple[int, int]] = []
+
+    for shname in [LCD_EXT_SHEET_V, ISCSI_SHEET]:
+        if shname not in wb.sheetnames:
+            continue
+        ws = wb[shname]
+        section_offs: list[int] = []
+        for row in ws.iter_rows(min_row=2, values_only=True):
+            if row[0] is None:
+                continue
+            off = _parse_offset(row[0])
+            if off is None:
+                continue
+            off += EXT_OFFSET_DELTA  # remap to binary word address
+            section_offs.append(off)
+
+            bits_range = _parse_bits(str(row[1]).strip() if row[1] is not None else "")
+            val = _parse_value(str(row[2]).strip() if row[2] is not None else "")
+
+            entry = {
+                "bits_str": str(row[1] or "").strip(),
+                "hi":  bits_range[0] if bits_range else None,
+                "lo":  bits_range[1] if bits_range else None,
+                "v":   val,
+                "lm":  val,
+                "desc": str(row[3] or "").strip() if len(row) > 3 else "",
+            }
+            fields.setdefault(off, []).append(entry)
+
+        if section_offs:
+            sections.append((min(section_offs), max(section_offs)))
+
+    wb.close()
+    return fields, sections
 
 
 def assemble_words(fields: dict[int, list[dict]], variant: str) -> dict[int, int]:
@@ -284,6 +344,19 @@ def build(platform_folder: Path,
 
         print(f"\nAssembling {label}...")
         words = assemble_words(fields, variant)
+
+        # Merge extended sections (LCD extension + iSCSI)
+        ext_fields, ext_sections = read_extended_fields(xlsm, variant)
+        if ext_fields:
+            ext_words = assemble_words(ext_fields, variant)
+            # Pre-fill each section's range with 0x0000 (matches VBA macro behaviour).
+            # The gap between sections (e.g. 0x8C–0x207) keeps 0xFFFF (erased state).
+            for (min_off, max_off) in ext_sections:
+                for i in range(min_off, max_off + 1):
+                    if i not in words:
+                        words[i] = EXT_ZERO_PAD
+            words.update(ext_words)
+
         if nvm_changes:
             words = apply_nvm_changes(words, nvm_changes, variant)
             applied = [c for c in nvm_changes if variant in c["variants"]]
