@@ -29,8 +29,8 @@ except ImportError:
 # ── constants ──────────────────────────────────────────────────────────────
 CSUM_WORD       = 0x3F
 CSUM_MAGIC      = 0xBABA
-NVM_IMAGE_WORDS = 4096   # full GBE NVM region: 4096 words = 8192 bytes
-NVM_PAD_WORD    = 0xFFFF # unused words are 0xFFFF (erased flash state)
+NVM_REGION_WORDS = 4096  # Full GBE NVM region: 4096 words = 8192 bytes (8 KB)
+NVM_PAD_VALUE = 0xFFFF   # Erased flash default for undefined words
 NVM_SHEET  = "full nvm map"
 GEN_SHEET  = "general variable"
 DATA_ROW   = 7        # 1-based first data row in full nvm map
@@ -189,21 +189,24 @@ def apply_checksum(words: dict[int, int]) -> dict[int, int]:
 
 
 def words_to_bytes(words: dict[int, int]) -> bytes:
-    """Pack word dict into a full 4096-word (8192-byte) little-endian NVM image.
-    Unused words are padded with 0xFFFF (erased flash state)."""
-    buf = bytearray(b"\xFF\xFF" * NVM_IMAGE_WORDS)  # pre-fill with 0xFFFF
-    for off, val in words.items():
-        if 0 <= off < NVM_IMAGE_WORDS:
-            struct.pack_into("<H", buf, off * 2, val)
+    """Pack word dict into a little-endian binary blob, padded to full NVM region size."""
+    size = max(NVM_REGION_WORDS, max(words.keys(), default=CSUM_WORD) + 1)
+    buf = bytearray(size * 2)
+    # Initialize all undefined words to 0xFFFF (erased flash default)
+    for i in range(size):
+        if i not in words:
+            struct.pack_into("<H", buf, i * 2, NVM_PAD_VALUE)
+        else:
+            struct.pack_into("<H", buf, i * 2, words[i])
     return bytes(buf)
 
 
 def words_to_txt(words: dict[int, int]) -> str:
-    """Hex dump of the full 4096-word NVM image: 8 words per line, space-separated.
-    Unused words are shown as FFFF (erased flash state)."""
+    """Hex dump: 8 words per line, space-separated (matches Intel NVM format)."""
+    size = max(NVM_REGION_WORDS, max(words.keys(), default=CSUM_WORD) + 1)
     lines = []
-    for base in range(0, NVM_IMAGE_WORDS, 8):
-        chunk = [f"{words.get(base + j, NVM_PAD_WORD):04X}" for j in range(8)]
+    for base in range(0, size, 8):
+        chunk = [f"{words.get(base + j, NVM_PAD_VALUE):04X}" for j in range(min(8, size - base))]
         lines.append(" ".join(chunk))
     return "\n".join(lines) + "\n"
 
