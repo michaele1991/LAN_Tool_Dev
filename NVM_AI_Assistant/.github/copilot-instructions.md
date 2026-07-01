@@ -77,6 +77,7 @@ def patch(bin_path, offset_int, bit_int, new_bit):
 - mode Both → patch both
 - Also patch *.txt (same word positions, space-separated hex)
 - Save `change_request_<timestamp>.json` + `change_report_<timestamp>.txt` in project folder
+- After build completes, always open the output folder in Windows Explorer: `explorer <output_dir>`
 
 ---
 
