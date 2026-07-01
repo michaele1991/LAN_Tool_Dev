@@ -303,6 +303,12 @@ def build(platform_folder: Path,
         outputs.append(bin_path)
 
     print(f"\nOutput folder: {output_dir}")
+    print(f"\nFiles created:")
+    for p in outputs:
+        print(f"  {p}")
+        txt = p.with_suffix(".txt")
+        if txt.exists():
+            print(f"  {txt}")
     return outputs
 
 
