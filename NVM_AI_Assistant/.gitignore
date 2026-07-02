@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environment
+.venv/
+venv/
+
+# Logs
+*.log
+app_out.txt
+app_err.txt
+test_v.txt
+
+# OS
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Excel temporary / lock files
+~$*.xlsm
+~$*.xlsx
+
+# Built NVM output folders (runtime-generated, not source)
+GBE_Image/**/*Release*/
+
+# Debug / temp docs
+WORKSPACE_CLEANUP_SUMMARY.md
+main.md

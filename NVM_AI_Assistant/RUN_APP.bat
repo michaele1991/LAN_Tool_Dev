@@ -18,8 +18,8 @@ if "%VENV_OK%"=="0" (
         pause
         exit /b 1
     )
-    .venv\Scripts\python.exe -m pip install -q --upgrade pip --index-url https://pypi.org/simple/
-    .venv\Scripts\python.exe -m pip install -q -r requirements.txt --index-url https://pypi.org/simple/
+    .venv\Scripts\python.exe -m pip install -q --upgrade pip
+    .venv\Scripts\python.exe -m pip install -q -r requirements.txt
 )
 
 :: ── Launch app (no console window) ────────────────────────────────────────

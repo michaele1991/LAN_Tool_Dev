@@ -1,0 +1,14 @@
+{
+  "projectName": "TTLR",
+  "nvmOutput": "T",
+  "silicon": "MTL_M_P",
+  "step": "A0",
+  "version": {
+    "major": "0",
+    "minor": "1"
+  },
+  "deviceId": "0x550g",
+  "skuDeviceId": "0x551g",
+  "lanMode": "lan",
+  "lmvMode": "Both"
+}
